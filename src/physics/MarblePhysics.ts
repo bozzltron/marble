@@ -28,6 +28,7 @@ export class MarblePhysics {
     // Falling state
     private isFalling: boolean = false;
     private fallStartTime: number = 0;
+    private fallTimeout: number = 3000; // Reset after 3 seconds of falling
     
     // Jumping mechanics
     private jumpForce: number = 0.3;
@@ -283,9 +284,12 @@ export class MarblePhysics {
         // Update position
         this.updatePosition(deltaTime);
         
-        // Check if we've fallen far enough to reset
+        // Check if we've fallen far enough or too long to reset
         const fallTime = Date.now() - this.fallStartTime;
-        if (fallTime > 3000) { // 3 seconds of falling
+        const hasFallenTooLong = fallTime > this.fallTimeout;
+        const hasFallenTooFar = this.marble.position.y < -20; // Reset sooner
+        
+        if (hasFallenTooLong || hasFallenTooFar) {
             this.resetAfterFall();
         }
     }

@@ -79,28 +79,28 @@ export class InputManager {
         const rightZone = screenWidth * 0.67;
         
         if (x < leftZone) {
-            // Left tap - steer left
+            // Left tap - steer left with stronger force
             this.touchInput.active = true;
-            this.touchInput.x = -0.5; // Steer left
+            this.touchInput.x = -1.5; // Much stronger left steering
             this.touchInput.z = 0;
             
-            // Auto-release after short duration
+            // Hold steering longer for better response
             setTimeout(() => {
                 this.touchInput.active = false;
                 this.touchInput.x = 0;
-            }, 200);
+            }, 400);
             
         } else if (x > rightZone) {
-            // Right tap - steer right
+            // Right tap - steer right with stronger force
             this.touchInput.active = true;
-            this.touchInput.x = 0.5; // Steer right
+            this.touchInput.x = 1.5; // Much stronger right steering
             this.touchInput.z = 0;
             
-            // Auto-release after short duration
+            // Hold steering longer for better response
             setTimeout(() => {
                 this.touchInput.active = false;
                 this.touchInput.x = 0;
-            }, 200);
+            }, 400);
             
         } else {
             // Center tap - jump
