@@ -1,7 +1,17 @@
-# Marble Madness - Infinite Zen Journey
+# Marble Game - Infinite Zen Journey
 
-## Project Vision
-A relaxing, focus-enhancing marble game built entirely with web standards. The game features an infinite, procedurally-generated winding path that provides a meditative experience while challenging the player's focus and precision.
+## Project Vision & Current State
+A relaxing, focus-enhancing marble rolling game inspired by the classic Marble Madness, built entirely with web standards. The game features an infinite, procedurally-generated winding path floating above scenic backgrounds, providing a meditative experience with simple left/right steering controls.
+
+## Current Implementation Status (December 2024)
+- ✅ **Auto-Forward Rolling**: Marble rolls forward automatically at constant speed
+- ✅ **Path-Following Camera**: Camera rotates with path curves for intuitive controls  
+- ✅ **Left/Right Steering**: Simplified controls - only steer left/right and jump
+- ✅ **Mobile Touch Controls**: Swipe left/right to steer, two-finger tap to jump
+- ✅ **Procedural Path Generation**: Infinite winding paths with gaps and terrain variety
+- ✅ **Gap Jumping**: Jump over gaps or fall and reset from checkpoint
+- ✅ **PWA Ready**: Service worker, manifest, installable as app
+- ✅ **Cloudflare Pages Deployment**: Git-based deployment ready
 
 ## Core Principles
 
@@ -29,12 +39,13 @@ A relaxing, focus-enhancing marble game built entirely with web standards. The g
 
 ## Game Mechanics
 
-### Marble Controls
-- **Mobile**: Drag/swipe to apply force to marble
-- **Desktop**: Arrow keys as fallback
-- **Physics**: Realistic marble physics with momentum and friction
-- **Precision**: Fine control for navigating narrow paths
-- **Responsiveness**: Immediate feedback to player input
+### Marble Controls (CURRENT IMPLEMENTATION)
+- **Auto-Forward**: Marble rolls forward automatically along path direction
+- **Mobile**: Swipe left/right to steer, two-finger tap to jump
+- **Desktop**: A/D or arrow keys to steer, spacebar to jump
+- **Physics**: Realistic marble physics with momentum, friction, and gravity
+- **Path-Aligned**: All movement relative to current path direction
+- **Steering Only**: No forward/backward control needed
 
 ### Infinite Path System
 - **Single Winding Path**: No flat platforms, only a continuous route forward
@@ -175,5 +186,66 @@ src/
 - **Memory Limit**: Never exceed 150MB RAM usage
 - **Battery Efficiency**: Optimized rendering loops
 - **Network Independence**: Full offline functionality
+
+## Context for Future LLMs
+
+### Architecture Overview
+```
+src/
+├── core/GameEngine.ts        # Main game loop, camera, scene management
+├── physics/MarblePhysics.ts  # Auto-forward rolling, steering, jumping, collision
+├── procedural/
+│   ├── PathGenerator.ts      # Procedural path generation with gaps
+│   └── ChunkManager.ts       # Memory-efficient chunk loading/unloading
+├── input/InputManager.ts     # Touch/keyboard input, mobile-first design
+└── audio/AudioManager.ts     # Placeholder for future audio system
+```
+
+### Key Technical Decisions Made
+1. **Auto-Forward Rolling**: Marble moves forward automatically, player only steers left/right
+2. **Path-Following Camera**: Camera rotates with path curves for intuitive controls
+3. **Mobile-First**: Touch controls are primary, keyboard is fallback
+4. **Segment-Based Collision**: Gaps are real holes in path geometry, not visual tricks
+5. **Checkpoint System**: Saves last safe position for intelligent resets
+6. **No Game Framework**: Pure Three.js for maximum control and minimal bundle size
+
+### Current Pain Points & Technical Debt
+- **Debug Logging**: Excessive console.log statements need cleanup
+- **Unused Code**: Some methods and properties no longer used after simplification
+- **Magic Numbers**: Physics constants could be better organized
+- **Audio System**: Currently just a stub, needs full implementation
+- **Path Generation**: Could be more efficient, some redundant calculations
+
+### Performance Characteristics
+- **Bundle Size**: ~493KB total (126KB gzipped)
+- **Three.js Chunk**: 465KB (cached separately)
+- **Game Code**: 28KB (fast updates)
+- **Target**: 60fps on mobile, <100MB RAM usage
+
+### Mobile Optimization Strategies
+- **Touch Sensitivity**: Amplified 2x for responsive steering
+- **Camera Distance**: Closer on mobile (8 units vs 10 on desktop)  
+- **Simplified Physics**: Reduced complexity for mobile GPUs
+- **Chunk Management**: Maximum 5 active chunks to limit memory
+
+### Deployment & Build
+- **Cloudflare Pages**: Git-based deployment with auto-build
+- **Build Command**: `npm run build:production`
+- **PWA Features**: Service worker, manifest, offline caching
+- **No CLI Tools**: Simplified deployment without Wrangler
+
+### Code Patterns to Follow
+- **TypeScript Strict**: Strong typing, no `any` types
+- **Modular Design**: Single responsibility classes
+- **Performance First**: 60fps target drives all decisions
+- **Mobile First**: Touch controls designed first, keyboard second
+- **Zen Philosophy**: Every feature should enhance calm, focused gameplay
+
+### Future Enhancement Priorities
+1. **Scenic Backgrounds**: Photo-realistic environments for floating paths
+2. **Infinite Generation**: Ensure path never ends, remove obstacles for chill experience  
+3. **Audio System**: Ambient soundscapes and spatial audio
+4. **Visual Polish**: Better materials, lighting, particle effects
+5. **Performance Analytics**: Monitor real-world performance metrics
 
 This project embodies the philosophy of "digital minimalism meets engaging gameplay" - providing a focused, calming experience that enhances rather than detracts from the user's mental state.

@@ -30,5 +30,8 @@ window.addEventListener('beforeunload', () => {
     // Cleanup will be handled by GameEngine destructor
 });
 
-// Export for debugging
-(window as any).gameEngine = gameEngine;
+// Export for debugging (development only)
+// @ts-ignore - Vite environment variable
+if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    (window as any).gameEngine = gameEngine;
+}

@@ -22,7 +22,7 @@ export interface PathChunk {
 export class PathGenerator {
     private seed: number;
     private chunkLength: number = 200;
-    private pathWidth: number = 4;
+    private pathWidth: number = 8; // Wider path for chill gameplay
     private currentDistance: number = 0;
     private lastDirection: THREE.Vector3 = new THREE.Vector3(0, 0, -1);
     private lastPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
@@ -154,12 +154,9 @@ export class PathGenerator {
         }
     }
     
-    private getPathWidthAtDistance(distance: number): number {
-        // Start wide, get narrower with difficulty
-        const baseDifficulty = 1 - this.difficulty * 0.5; // Never go below 50% width
-        const variation = Math.sin(distance * 0.01) * 0.2; // Some variation
-        
-        return this.pathWidth * (baseDifficulty + variation);
+    private getPathWidthAtDistance(_distance: number): number {
+        // Keep path consistently wide for chill gameplay
+        return this.pathWidth; // No variation, always full width
     }
     
     private getBiomeAtDistance(distance: number): string {
@@ -187,9 +184,8 @@ export class PathGenerator {
                 
                 // Create a meaningful gap that requires jumping
                 const gapSize = this.getGapSize(point.terrainType, point.biome);
-                const gapDistance = gapSize * 4; // Actual distance in world units
                 
-                console.log(`Creating gap of ${gapDistance} units at distance ${this.currentDistance + i * (this.chunkLength / points.length)}`);
+                // Gap created in path geometry
                 
                 // Skip points to create the actual gap in path data
                 i += gapSize - 1; // -1 because the loop will increment
@@ -209,30 +205,13 @@ export class PathGenerator {
             segments.push(points);
         }
         
-        console.log(`Created ${segments.length} path segments with gaps`);
+        // Path segments created with gaps for jumping gameplay
         return segments;
     }
     
-    private shouldCreateGap(point: PathPoint, index: number, totalPoints: number): boolean {
-        // Don't create gaps at the beginning or end of chunks
-        if (index < 5 || index > totalPoints - 10) return false;
-        
-        // Higher chance of gaps on elevated terrain
-        const terrainGapChance: { [key: string]: number } = {
-            'ground': 0.05,
-            'elevated': 0.15,
-            'canopy': 0.25,
-            'bridge': 0.3,
-            'floating': 0.4
-        };
-        
-        const baseChance = terrainGapChance[point.terrainType] || 0.1;
-        
-        // Increase chance with difficulty
-        const difficultyMultiplier = 1 + this.difficulty * 0.5;
-        const finalChance = baseChance * difficultyMultiplier;
-        
-        return Math.random() < finalChance;
+    private shouldCreateGap(_point: PathPoint, _index: number, _totalPoints: number): boolean {
+        // For chill gameplay, no gaps - just continuous flowing path
+        return false;
     }
     
     private getGapSize(terrainType: string, biome: string): number {
@@ -268,13 +247,9 @@ export class PathGenerator {
             meshes.push(pathMesh);
         }
         
-        // Generate guardrails for narrow sections
-        const guardrails = this.createGuardrails(points);
-        meshes.push(...guardrails);
-        
-        // Generate scenic elements
-        const scenicElements = this.createScenicElements(points);
-        meshes.push(...scenicElements);
+        // No guardrails or obstacles for chill gameplay
+        // const guardrails = this.createGuardrails(points);
+        // const scenicElements = this.createScenicElements(points);
         
         return meshes;
     }
@@ -386,42 +361,6 @@ export class PathGenerator {
         return materials[biome] || materials.meadow;
     }
     
-    private createGuardrails(points: PathPoint[]): THREE.Mesh[] {
-        const guardrails: THREE.Mesh[] = [];
-        
-        // Only add guardrails for narrow or elevated sections
-        for (let i = 0; i < points.length - 1; i++) {
-            const point = points[i];
-            
-            if (point.width < 3 || point.position.y > 5) {
-                // Create simple guardrail geometry
-                const railGeometry = new THREE.BoxGeometry(0.1, 0.5, 1);
-                const railMaterial = new THREE.MeshStandardMaterial({ 
-                    color: 0xcccccc,
-                    metalness: 0.8,
-                    roughness: 0.2
-                });
-                
-                // Left rail
-                const leftRail = new THREE.Mesh(railGeometry, railMaterial);
-                leftRail.position.copy(point.position);
-                leftRail.position.x -= point.width / 2 + 0.2;
-                leftRail.position.y += 0.25;
-                leftRail.castShadow = true;
-                guardrails.push(leftRail);
-                
-                // Right rail
-                const rightRail = new THREE.Mesh(railGeometry, railMaterial);
-                rightRail.position.copy(point.position);
-                rightRail.position.x += point.width / 2 + 0.2;
-                rightRail.position.y += 0.25;
-                rightRail.castShadow = true;
-                guardrails.push(rightRail);
-            }
-        }
-        
-        return guardrails;
-    }
     
     private createScenicElements(points: PathPoint[]): THREE.Mesh[] {
         const elements: THREE.Mesh[] = [];

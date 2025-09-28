@@ -20,7 +20,7 @@ export class MarblePhysics {
     private maxSpeed: number = 0.4;
     private bounceFactor: number = 0.3;
     private marbleRadius: number = 0.3;
-    private autoForwardSpeed: number = 0.15; // Constant forward rolling speed
+    private autoForwardSpeed: number = 0.3; // Constant forward rolling speed (increased for visibility)
     
     // Ground detection
     private groundLevel: number = 0.3; // Marble radius
@@ -113,7 +113,9 @@ export class MarblePhysics {
         const pathDirection = this.getPathDirection();
         const forwardForce = pathDirection.clone().multiplyScalar(this.autoForwardSpeed);
         
-        // Apply auto-forward motion
+        // Auto-forward motion applied
+        
+        // Apply auto-forward motion directly to velocity
         this.velocity.x = forwardForce.x;
         this.velocity.z = forwardForce.z;
         
@@ -383,38 +385,4 @@ export class MarblePhysics {
         return this.canJump;
     }
     
-    // Simplified boundary detection - much more reliable
-    public checkPathBoundaries(pathPoints: THREE.Vector3[], pathWidth: number): boolean {
-        if (!this.marble || pathPoints.length < 2) return false;
-        
-        const marblePos = this.marble.position;
-        
-        // Simple distance check to path center
-        let closestDistance = Infinity;
-        
-        for (const point of pathPoints) {
-            // Only check horizontal distance (ignore Y)
-            const distance = Math.sqrt(
-                Math.pow(marblePos.x - point.x, 2) + 
-                Math.pow(marblePos.z - point.z, 2)
-            );
-            
-            if (distance < closestDistance) {
-                closestDistance = distance;
-            }
-        }
-        
-        // Check if marble is outside path boundaries
-        const halfWidth = pathWidth / 2;
-        const tolerance = 0.5; // Reasonable tolerance - not too generous
-        
-        if (closestDistance > halfWidth + this.marbleRadius + tolerance) {
-            // Marble is outside path boundaries - start falling immediately!
-            console.log('Marble fell off path! Distance:', closestDistance, 'Path width:', pathWidth);
-            this.startFalling();
-            return true;
-        }
-        
-        return false;
-    }
 }

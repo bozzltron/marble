@@ -17,6 +17,8 @@ export class InputManager {
     private jumpPressed: boolean = false;
     private lastJumpTime: number = 0;
     private jumpCooldown: number = 200; // 200ms cooldown for touch jump
+    private touchStartTime: number = 0;
+    private tapThreshold: number = 200; // ms - max time for a tap vs drag
     
     constructor() {
         this.setupEventListeners();
@@ -61,20 +63,16 @@ export class InputManager {
     private onTouchStart(event: TouchEvent): void {
         event.preventDefault();
         
-        if (event.touches.length > 0) {
+        if (event.touches.length === 1) {
             const touch = event.touches[0];
             this.lastTouchX = touch.clientX;
             this.lastTouchY = touch.clientY;
             this.touchInput.active = true;
+            this.touchStartTime = Date.now();
             
             // Reset smoothed input
             this.smoothedTouchInput.x = 0;
             this.smoothedTouchInput.z = 0;
-        }
-        
-        // Handle multi-touch for jumping (two fingers = jump)
-        if (event.touches.length >= 2) {
-            this.handleJumpInput();
         }
     }
     
@@ -95,7 +93,7 @@ export class InputManager {
         this.touchInput.x = this.smoothedTouchInput.x;
         this.touchInput.z = 0; // No vertical input needed
         
-        console.log('Touch move - deltaX:', deltaX, 'inputX:', this.touchInput.x);
+        // Touch input processed for steering
         
         this.lastTouchX = touch.clientX;
         this.lastTouchY = touch.clientY;
@@ -103,6 +101,16 @@ export class InputManager {
     
     private onTouchEnd(event: TouchEvent): void {
         event.preventDefault();
+        
+        // Check if this was a quick tap (for jumping)
+        const touchDuration = Date.now() - this.touchStartTime;
+        const wasMoving = Math.abs(this.touchInput.x) > 0.1;
+        
+        if (touchDuration < this.tapThreshold && !wasMoving) {
+            // Quick tap without movement = jump
+            this.handleJumpInput();
+        }
+        
         this.touchInput.active = false;
         this.touchInput.x = 0;
         this.touchInput.z = 0;
@@ -195,7 +203,7 @@ export class InputManager {
         if (this.touchInput.active) {
             inputX = this.touchInput.x * 2; // Amplify touch sensitivity for steering
             active = true;
-            console.log('Touch input X:', inputX);
+            // Touch steering active
         }
         
         // Touch jump input
