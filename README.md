@@ -9,7 +9,9 @@ A WebGL marble rolling game inspired by the classic Marble Madness, built with T
 - **Procedural Generation**: Infinite, algorithmically generated paths
 - **Gap Jumping**: Jump over gaps or fall and reset from checkpoints
 - **Zen Gaming**: Relaxing, focus-enhancing gameplay experience
-- **Progressive Web App**: Offline-capable gaming experience
+- **Progressive Web App**: Offline-capable gaming experience with auto-updates
+- **Landscape Themes**: Switch between Mountain and Space environments
+- **Auto-Update System**: Seamless updates with user-friendly notifications
 
 ## 🚀 Quick Start
 
@@ -78,12 +80,14 @@ npm run build:production
 - **Mobile Optimization**: Touch controls and responsive camera system
 - **Bundle Optimization**: Three.js separated for better caching
 
-## 📱 PWA Features (Planned)
+## 📱 PWA Features
 
-- Offline gameplay
-- App-like installation
-- Background sync
-- Push notifications for challenges
+- **Auto-Updates**: Vite PWA plugin with automatic service worker updates
+- **Update Notifications**: User-friendly update prompts with auto-apply
+- **Offline Gameplay**: Full game functionality without internet connection
+- **App-like Installation**: Install directly to home screen on mobile/desktop
+- **Cache Management**: Automatic cache versioning and cleanup
+- **Background Updates**: Updates check every minute and apply seamlessly
 
 ## 🛠️ Development
 

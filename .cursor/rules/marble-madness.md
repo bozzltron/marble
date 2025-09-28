@@ -55,14 +55,33 @@ A relaxing, focus-enhancing marble rolling game inspired by the classic Marble M
 - **Difficulty Scaling**: Gradually increasing complexity over time
 
 ### Level Design Requirements
-- **Path Width**: Varies from comfortable to challenging
-- **Elevation Changes**: Hills, valleys, and gentle slopes
-- **Curves**: Smooth S-curves, spirals, and gentle turns
+- **Cohesive World**: Path generation based on world position creates seamless experience
+- **World-Scale Features**: Large elevation changes and curves span multiple chunks
+- **Invisible Boundaries**: Chunk transitions are completely seamless to players
+- **Path Width**: Consistently wide for relaxing gameplay
+- **Elevation Changes**: Hills, valleys, and gentle slopes using world-coherent noise
+- **Curves**: Smooth S-curves, spirals, and gentle turns based on world position
 - **Obstacles**: Minimal, integrated into path design
 - **Checkpoints**: Invisible progress markers for respawn
 - **Visual Variety**: Different themes/biomes as player progresses
 
 ## Technical Architecture
+
+### Core Systems
+- **GameEngine**: Central coordinator managing all systems
+- **PathGenerator**: Procedural infinite path generation with biome variety
+- **ChunkManager**: Efficient loading/unloading of path segments with terrain
+- **LandscapeManager**: Isolated landscape themes with collision-aware terrain generation
+- **MarblePhysics**: Realistic marble movement with gravity, friction, jumping
+- **InputManager**: Cross-platform input handling (keyboard, touch, gamepad)
+- **AudioManager**: Procedural ambient soundscapes
+
+### Landscape System
+- **Mountain Theme**: Clean mountain environment with scenic backdrop only
+- **Space Theme**: Cosmic environment with planets, asteroids, space stations
+- **Minimal Design**: Mountain theme focuses on marble, path, and distant mountains
+- **Theme Switching**: Runtime switching between landscape themes
+- **Consistent Generation**: Each theme maintains visual coherence across chunks
 
 ### Performance Optimization
 - **Memory Management**: 
@@ -73,6 +92,10 @@ A relaxing, focus-enhancing marble rolling game inspired by the classic Marble M
   - Level-of-detail (LOD) for distant objects
   - Frustum culling for off-screen elements
   - Efficient shadow mapping
+- **Runtime Performance**:
+  - Zero console.log statements in production
+  - Debug utility for development-only logging
+  - Optimized update loops with reduced frequency calls
 - **Mobile Considerations**:
   - Adaptive quality settings based on device performance
   - Battery usage optimization
@@ -111,10 +134,11 @@ A relaxing, focus-enhancing marble rolling game inspired by the classic Marble M
 ## PWA Implementation
 
 ### Offline Functionality
-- **Service Worker**: Cache all game assets
-- **Offline Storage**: Save game progress locally
-- **Background Sync**: Sync progress when online
-- **Update Strategy**: Seamless updates without interrupting gameplay
+- **Vite PWA Plugin**: Automated service worker generation with auto-updates
+- **Service Worker**: Cache all game assets automatically
+- **Update Strategy**: Seamless auto-updates with user notification system
+- **Cache Management**: Automatic cache versioning and cleanup
+- **Update Notifications**: User-friendly prompts with 30-second auto-apply
 
 ### Installation Features
 - **App Manifest**: Proper PWA manifest for installation

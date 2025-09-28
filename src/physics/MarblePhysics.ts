@@ -14,9 +14,9 @@ export class MarblePhysics {
     
     // Physics constants
     private gravity: number = 0.015;
-    private friction: number = 0.985;
+    private friction: number = 0.975; // Reduced friction for more responsive steering
     private airResistance: number = 0.998;
-    private acceleration: number = 0.008;
+    private acceleration: number = 0.025; // Extremely aggressive steering acceleration
     private maxSpeed: number = 0.4;
     private bounceFactor: number = 0.3;
     private marbleRadius: number = 0.3;
@@ -134,8 +134,8 @@ export class MarblePhysics {
             this.tempVector2.set(0, 1, 0);
             this.tempVector.crossVectors(pathDirection, this.tempVector2).normalize();
             
-            // Apply steering force
-            this.tempVector.multiplyScalar(input.x * this.acceleration * deltaTime * 60);
+            // Apply extremely aggressive steering force
+            this.tempVector.multiplyScalar(input.x * this.acceleration * deltaTime * 120); // Maximum steering responsiveness
             this.velocity.x += this.tempVector.x;
             this.velocity.z += this.tempVector.z;
         }
@@ -325,7 +325,7 @@ export class MarblePhysics {
                 // Save current position as safe checkpoint (only if on valid path)
                 this.lastSafePosition.copy(this.marble.position);
                 this.checkpointUpdateTimer = 0;
-                console.log('Safe checkpoint saved at:', this.lastSafePosition);
+                // Safe checkpoint saved
             }
         }
     }

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { LandscapeManager } from './LandscapeManager';
 
 export interface PathPoint {
     position: THREE.Vector3;
@@ -14,6 +15,7 @@ export interface PathChunk {
     points: PathPoint[];
     segments: PathPoint[][]; // Separated segments with gaps between them
     meshes: THREE.Mesh[];
+    terrainMeshes?: THREE.Mesh[]; // Terrain objects that avoid intersecting the path
     startPosition: THREE.Vector3;
     endPosition: THREE.Vector3;
     length: number;
@@ -27,13 +29,29 @@ export class PathGenerator {
     private lastDirection: THREE.Vector3 = new THREE.Vector3(0, 0, -1);
     private lastPosition: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
     private difficulty: number = 0;
+    private landscapeManager: LandscapeManager | null = null;
     
-    // Biome progression
-    private biomes = ['meadow', 'forest', 'mountain', 'desert', 'arctic', 'cosmic'];
+    // World continuity properties
+    private noiseOffsetX: number = 0; // X offset for noise consistency
+    private noiseOffsetZ: number = 0; // Z offset for noise consistency
+    
+    // World-scale features that persist across chunks
+    private worldElevationScale: number = 0.0008; // Large elevation changes
+    private worldCurvatureScale: number = 0.0005; // Large directional changes
+    private localVariationScale: number = 0.003; // Small local variations
+    
     
     constructor(seed?: number) {
         this.seed = seed || Math.random() * 1000000;
         this.initializeNoise();
+        
+        // Initialize world noise offsets based on seed for consistency
+        this.noiseOffsetX = this.seed * 0.001;
+        this.noiseOffsetZ = this.seed * 0.0013; // Different offset for Z to avoid correlation
+    }
+    
+    public setLandscapeManager(landscapeManager: LandscapeManager): void {
+        this.landscapeManager = landscapeManager;
     }
     
     private initializeNoise(): void {
@@ -57,16 +75,19 @@ export class PathGenerator {
         let currentPos = this.lastPosition.clone();
         let currentDir = this.lastDirection.clone();
         
-        // Generate path points
+        // Generate path points using world-consistent noise
         for (let i = 0; i <= segmentCount; i++) {
             const t = i / segmentCount;
             
-            // Add some controlled randomness to direction
-            const curvature = this.getCurvatureAtDistance(this.currentDistance + t * this.chunkLength);
-            const elevation = this.getElevationAtDistance(this.currentDistance + t * this.chunkLength);
+            // Calculate world position for this point
+            const worldPos = currentPos.clone();
             
-            // Apply curvature
-            const turnAngle = curvature * 0.02; // Gentle turns
+            // Get world-consistent curvature and elevation
+            const curvature = this.getCurvatureAtWorldPosition(worldPos);
+            const elevation = this.getElevationAtWorldPosition(worldPos);
+            
+            // Apply curvature based on world position, not distance
+            const turnAngle = curvature * 0.015; // Slightly reduced for smoother curves
             currentDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), turnAngle);
             currentDir.normalize();
             
@@ -74,7 +95,7 @@ export class PathGenerator {
             const stepVector = currentDir.clone().multiplyScalar(segmentLength);
             currentPos.add(stepVector);
             
-            // Apply elevation
+            // Apply world-consistent elevation
             currentPos.y = elevation;
             
             // Calculate path width (varies for difficulty)
@@ -84,7 +105,7 @@ export class PathGenerator {
             const banking = Math.abs(curvature) * 0.1;
             
             // Determine biome (keep it simple)
-            const biome = this.getBiomeAtDistance(this.currentDistance + t * this.chunkLength);
+            const biome = 'default'; // Simplified - no biome progression needed
             
             // Keep elevation simple - just use the calculated elevation
             currentPos.y = elevation;
@@ -99,11 +120,23 @@ export class PathGenerator {
             });
         }
         
-        // Update state for next chunk
-        this.lastPosition = currentPos.clone();
+        // Update state for next chunk - ensure smooth transitions
+        this.lastPosition = points[points.length - 1].position.clone();
         this.lastDirection = currentDir.clone();
         this.currentDistance += this.chunkLength;
         this.difficulty = Math.min(this.currentDistance / 10000, 1); // Max difficulty at 10km
+        
+        // Smooth the connection between chunks by adjusting the last point
+        if (points.length > 1) {
+            const lastPoint = points[points.length - 1];
+            const secondLastPoint = points[points.length - 2];
+            
+            // Calculate smooth direction for next chunk
+            const chunkDirection = new THREE.Vector3()
+                .subVectors(lastPoint.position, secondLastPoint.position)
+                .normalize();
+            this.lastDirection = chunkDirection;
+        }
         
         // Generate meshes for this chunk
         const meshes = this.generateChunkMeshes(points);
@@ -122,35 +155,42 @@ export class PathGenerator {
         };
     }
     
-    private getCurvatureAtDistance(distance: number): number {
-        // Very gentle, soothing curves for zen gameplay
-        const scale1 = distance * 0.0005; // Much slower curves
-        const scale2 = distance * 0.0012; // Gentle secondary curves
+    private getCurvatureAtWorldPosition(worldPos: THREE.Vector3): number {
+        // Use world position for consistent curvature across chunks
+        const x = worldPos.x + this.noiseOffsetX;
+        const z = worldPos.z + this.noiseOffsetZ;
         
-        // Reduced amplitude for easier, more relaxing navigation
-        return (
-            Math.sin(scale1) * 0.2 +
-            Math.sin(scale2) * 0.1
-        );
+        // Multiple octaves of noise based on world position
+        const largeCurves = Math.sin(x * this.worldCurvatureScale * Math.PI * 2) * 
+                           Math.cos(z * this.worldCurvatureScale * Math.PI * 2) * 0.12;
+        
+        const mediumCurves = Math.sin(x * this.worldCurvatureScale * 2.3 * Math.PI * 2) * 
+                            Math.cos(z * this.worldCurvatureScale * 1.7 * Math.PI * 2) * 0.06;
+        
+        const smallCurves = Math.sin(x * this.localVariationScale * Math.PI * 2) * 
+                           Math.cos(z * this.localVariationScale * 1.3 * Math.PI * 2) * 0.03;
+        
+        return largeCurves + mediumCurves + smallCurves;
     }
     
-    private getElevationAtDistance(distance: number): number {
-        // Gentle hills and valleys
-        const scale1 = distance * 0.0005;
-        const scale2 = distance * 0.002;
+    private getElevationAtWorldPosition(worldPos: THREE.Vector3): number {
+        // Use world position for consistent elevation across chunks
+        const x = worldPos.x + this.noiseOffsetX;
+        const z = worldPos.z + this.noiseOffsetZ;
         
-        const baseElevation = Math.sin(scale1) * 10 + Math.sin(scale2) * 3;
+        // Large-scale elevation changes that span multiple chunks
+        const largeElevation = Math.sin(x * this.worldElevationScale * Math.PI * 2) * 
+                              Math.cos(z * this.worldElevationScale * Math.PI * 2) * 8;
         
-        // Add biome-specific elevation
-        const biome = this.getBiomeAtDistance(distance);
-        switch (biome) {
-            case 'mountain':
-                return baseElevation + Math.sin(distance * 0.0003) * 20;
-            case 'desert':
-                return baseElevation + Math.sin(distance * 0.001) * 5;
-            default:
-                return baseElevation;
-        }
+        // Medium-scale hills and valleys
+        const mediumElevation = Math.sin(x * this.worldElevationScale * 2.7 * Math.PI * 2) * 
+                               Math.cos(z * this.worldElevationScale * 1.9 * Math.PI * 2) * 3;
+        
+        // Small local variations
+        const localElevation = Math.sin(x * this.localVariationScale * 1.5 * Math.PI * 2) * 
+                              Math.cos(z * this.localVariationScale * 1.2 * Math.PI * 2) * 1;
+        
+        return largeElevation + mediumElevation + localElevation;
     }
     
     private getPathWidthAtDistance(_distance: number): number {
@@ -158,11 +198,6 @@ export class PathGenerator {
         return this.pathWidth; // No variation, always full width
     }
     
-    private getBiomeAtDistance(distance: number): string {
-        // Change biome every 5km
-        const biomeIndex = Math.floor(distance / 5000) % this.biomes.length;
-        return this.biomes[biomeIndex];
-    }
     
     // Removed complex terrain types - keeping it simple for now
     
@@ -240,15 +275,13 @@ export class PathGenerator {
         const pathSegments = this.createPathWithGaps(points);
         for (const segment of pathSegments) {
             const pathGeometry = this.createPathGeometry(segment);
-            const pathMaterial = this.createPathMaterial(points[0].biome);
+            const pathMaterial = this.landscapeManager ? 
+                this.landscapeManager.getPathMaterial() : 
+                this.createPathMaterial(points[0].biome);
             const pathMesh = new THREE.Mesh(pathGeometry, pathMaterial);
             pathMesh.receiveShadow = true;
             meshes.push(pathMesh);
         }
-        
-        // No guardrails or obstacles for chill gameplay
-        // const guardrails = this.createGuardrails(points);
-        // const scenicElements = this.createScenicElements(points);
         
         return meshes;
     }

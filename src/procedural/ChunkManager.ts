@@ -1,18 +1,24 @@
 import * as THREE from 'three';
 import { PathGenerator, PathChunk } from './PathGenerator';
+import { LandscapeManager } from './LandscapeManager';
 
 export class ChunkManager {
     private scene: THREE.Scene;
     private pathGenerator: PathGenerator;
+    private landscapeManager: LandscapeManager;
     private activeChunks: Map<string, PathChunk> = new Map();
     private maxActiveChunks: number = 10; // Even more chunks to ensure infinite generation
     private chunkLoadDistance: number = 600; // Load chunks much earlier - user should never see end
     private chunkUnloadDistance: number = 1000; // Keep chunks longer for smoother experience
     private nextChunkId: number = 0;
     
-    constructor(scene: THREE.Scene, pathGenerator: PathGenerator) {
+    constructor(scene: THREE.Scene, pathGenerator: PathGenerator, landscapeManager: LandscapeManager) {
         this.scene = scene;
         this.pathGenerator = pathGenerator;
+        this.landscapeManager = landscapeManager;
+        
+        // Connect landscape manager to path generator
+        this.pathGenerator.setLandscapeManager(landscapeManager);
     }
     
     public initialize(): void {
@@ -106,48 +112,68 @@ export class ChunkManager {
             const chunk = this.pathGenerator.generateChunk(chunkId);
             this.loadChunk(chunk);
         } catch (error) {
-            console.error('Failed to generate chunk:', error);
+            // Failed to generate chunk - continuing with existing chunks
         }
     }
     
     private loadChunk(chunk: PathChunk): void {
-        // Add all meshes to scene
+        // Add path meshes to scene
         for (const mesh of chunk.meshes) {
             this.scene.add(mesh);
         }
         
+        // Generate and add terrain meshes that avoid intersecting the path
+        const terrainMeshes = this.landscapeManager.generateTerrainForChunk(chunk.points, chunk.id);
+        terrainMeshes.forEach(mesh => {
+            this.scene.add(mesh);
+        });
+        
+        // Store terrain meshes with the chunk for cleanup
+        chunk.terrainMeshes = terrainMeshes;
+        
         // Store chunk reference
         this.activeChunks.set(chunk.id, chunk);
         
-        console.log(`Loaded chunk ${chunk.id}, active chunks: ${this.activeChunks.size}`);
+        // Chunk loaded successfully
     }
     
     private unloadChunk(chunkId: string): void {
         const chunk = this.activeChunks.get(chunkId);
         if (!chunk) return;
         
-        // Remove all meshes from scene
+        // Remove path meshes from scene
         for (const mesh of chunk.meshes) {
             this.scene.remove(mesh);
-            
-            // Dispose of geometry and materials to free memory
-            if (mesh.geometry) {
-                mesh.geometry.dispose();
-            }
-            
-            if (mesh.material) {
-                if (Array.isArray(mesh.material)) {
-                    mesh.material.forEach(material => material.dispose());
-                } else {
-                    mesh.material.dispose();
-                }
+            this.disposeMesh(mesh);
+        }
+        
+        // Remove terrain meshes from scene
+        if (chunk.terrainMeshes) {
+            for (const mesh of chunk.terrainMeshes) {
+                this.scene.remove(mesh);
+                this.disposeMesh(mesh);
             }
         }
         
         // Remove chunk reference
         this.activeChunks.delete(chunkId);
         
-        console.log(`Unloaded chunk ${chunkId}, active chunks: ${this.activeChunks.size}`);
+        // Chunk unloaded successfully
+    }
+    
+    private disposeMesh(mesh: THREE.Mesh): void {
+        // Dispose of geometry and materials to free memory
+        if (mesh.geometry) {
+            mesh.geometry.dispose();
+        }
+        
+        if (mesh.material) {
+            if (Array.isArray(mesh.material)) {
+                mesh.material.forEach(material => material.dispose());
+            } else {
+                mesh.material.dispose();
+            }
+        }
     }
     
     public getCurrentStartPosition(): THREE.Vector3 {
@@ -173,11 +199,11 @@ export class ChunkManager {
                 firstPoint.position.z
             );
             
-            console.log('Found start position:', startPos, 'from chunk:', earliestChunk.id);
+            // Found valid start position
             return startPos;
         }
         
-        console.log('No chunks available, using fallback position');
+        // No chunks available, using fallback position
         return new THREE.Vector3(0, 2, 0);
     }
     

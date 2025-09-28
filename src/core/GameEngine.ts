@@ -4,6 +4,7 @@ import { MarblePhysics } from '../physics/MarblePhysics';
 import { InputManager } from '../input/InputManager';
 import { AudioManager } from '../audio/AudioManager';
 import { ChunkManager } from '../procedural/ChunkManager';
+import { LandscapeManager } from '../procedural/LandscapeManager';
 
 export class GameEngine {
     private scene!: THREE.Scene;
@@ -14,6 +15,7 @@ export class GameEngine {
     private inputManager!: InputManager;
     private audioManager!: AudioManager;
     private chunkManager!: ChunkManager;
+    private landscapeManager!: LandscapeManager;
     
     private marble!: THREE.Mesh;
     private isRunning: boolean = false;
@@ -64,21 +66,6 @@ export class GameEngine {
     
     private initializeScene(): void {
         this.scene = new THREE.Scene();
-        
-        // Scenic photo-realistic background
-        this.createScenicBackground();
-        
-        // Ambient lighting for relaxing atmosphere
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
-        this.scene.add(ambientLight);
-        
-        // Soft directional light
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        directionalLight.position.set(10, 20, 5);
-        directionalLight.castShadow = true;
-        directionalLight.shadow.mapSize.width = 2048;
-        directionalLight.shadow.mapSize.height = 2048;
-        this.scene.add(directionalLight);
     }
     
     private initializeCamera(): void {
@@ -98,7 +85,8 @@ export class GameEngine {
     
     private initializeManagers(): void {
         this.pathGenerator = new PathGenerator();
-        this.chunkManager = new ChunkManager(this.scene, this.pathGenerator);
+        this.landscapeManager = new LandscapeManager(this.scene);
+        this.chunkManager = new ChunkManager(this.scene, this.pathGenerator, this.landscapeManager);
         this.marblePhysics = new MarblePhysics();
         this.inputManager = new InputManager();
         this.audioManager = new AudioManager();
@@ -130,136 +118,6 @@ export class GameEngine {
         this.marblePhysics.setCheckpoint(this.marble.position);
     }
     
-    private createScenicBackground(): void {
-        // Create a photo-realistic scenic environment
-        this.createSkyGradient();
-        this.createDistantMountains();
-        this.createFloatingClouds();
-    }
-    
-    private createSkyGradient(): void {
-        // Create a realistic sky gradient
-        const canvas = document.createElement('canvas');
-        canvas.width = 1024;
-        canvas.height = 512;
-        
-        const context = canvas.getContext('2d')!;
-        
-        // Create sky gradient from horizon to zenith
-        const gradient = context.createLinearGradient(0, 512, 0, 0);
-        gradient.addColorStop(0, '#FFE4B5');  // Warm horizon
-        gradient.addColorStop(0.3, '#87CEEB'); // Light blue
-        gradient.addColorStop(0.7, '#4169E1'); // Royal blue
-        gradient.addColorStop(1, '#191970');   // Midnight blue at zenith
-        
-        context.fillStyle = gradient;
-        context.fillRect(0, 0, 1024, 512);
-        
-        // Add atmospheric haze near horizon
-        const hazeGradient = context.createRadialGradient(512, 400, 0, 512, 400, 600);
-        hazeGradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
-        hazeGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        context.fillStyle = hazeGradient;
-        context.fillRect(0, 0, 1024, 512);
-        
-        const texture = new THREE.CanvasTexture(canvas);
-        const geometry = new THREE.SphereGeometry(800, 32, 16);
-        const material = new THREE.MeshBasicMaterial({ 
-            map: texture, 
-            side: THREE.BackSide 
-        });
-        
-        const skybox = new THREE.Mesh(geometry, material);
-        this.scene.add(skybox);
-    }
-    
-    private createDistantMountains(): void {
-        // Create layered mountain silhouettes for depth
-        const layers = [
-            { color: '#2F4F4F', opacity: 0.8, z: -600, y: -50 }, // Back mountains
-            { color: '#708090', opacity: 0.6, z: -500, y: -30 }, // Middle mountains  
-            { color: '#9ACD32', opacity: 0.4, z: -400, y: -10 }  // Front mountains
-        ];
-        
-        layers.forEach(layer => {
-            const mountain = this.createMountainLayer(layer.color, layer.opacity);
-            mountain.position.set(0, layer.y, layer.z);
-            this.scene.add(mountain);
-        });
-    }
-    
-    private createMountainLayer(color: string, opacity: number): THREE.Mesh {
-        const canvas = document.createElement('canvas');
-        canvas.width = 1600;
-        canvas.height = 200;
-        
-        const context = canvas.getContext('2d')!;
-        context.fillStyle = color;
-        context.globalAlpha = opacity;
-        
-        // Draw mountain silhouette with random peaks
-        context.beginPath();
-        context.moveTo(0, 200);
-        
-        for (let x = 0; x <= 1600; x += 50) {
-            const height = Math.random() * 100 + 50;
-            context.lineTo(x, 200 - height);
-        }
-        
-        context.lineTo(1600, 200);
-        context.closePath();
-        context.fill();
-        
-        const texture = new THREE.CanvasTexture(canvas);
-        const geometry = new THREE.PlaneGeometry(1600, 200);
-        const material = new THREE.MeshBasicMaterial({ 
-            map: texture, 
-            transparent: true,
-            side: THREE.DoubleSide
-        });
-        
-        return new THREE.Mesh(geometry, material);
-    }
-    
-    private createFloatingClouds(): void {
-        // Add subtle floating clouds for atmosphere
-        for (let i = 0; i < 6; i++) {
-            const cloud = this.createCloud();
-            cloud.position.set(
-                (Math.random() - 0.5) * 1000,
-                100 + Math.random() * 200,
-                -300 - Math.random() * 400
-            );
-            this.scene.add(cloud);
-        }
-    }
-    
-    private createCloud(): THREE.Mesh {
-        const canvas = document.createElement('canvas');
-        canvas.width = 256;
-        canvas.height = 128;
-        
-        const context = canvas.getContext('2d')!;
-        
-        // Create fluffy cloud texture
-        const gradient = context.createRadialGradient(128, 64, 0, 128, 64, 100);
-        gradient.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
-        gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.4)');
-        gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-        
-        context.fillStyle = gradient;
-        context.fillRect(0, 0, 256, 128);
-        
-        const texture = new THREE.CanvasTexture(canvas);
-        const geometry = new THREE.PlaneGeometry(200, 100);
-        const material = new THREE.MeshBasicMaterial({ 
-            map: texture, 
-            transparent: true,
-            side: THREE.DoubleSide
-        });
-        
-        return new THREE.Mesh(geometry, material);
-    }
     
     private setupEventListeners(): void {
         window.addEventListener('resize', this.onWindowResize.bind(this));
@@ -293,6 +151,9 @@ export class GameEngine {
         this.lastTime = performance.now();
         this.lastFPSUpdate = this.lastTime;
         // Game loop started
+        
+        // Initialize landscape background
+        this.landscapeManager.getCurrentTheme().generateBackground(this.scene);
         
         // Initialize first chunks
         this.chunkManager.initialize();
@@ -423,7 +284,7 @@ export class GameEngine {
             
             // Log performance issues
             if (fps < 50) {
-                console.warn(`Low FPS detected: ${fps}`);
+                // Low FPS detected - could implement quality reduction here
                 // Could trigger quality reduction here
             }
         }
@@ -431,6 +292,14 @@ export class GameEngine {
     
     public getMarblePosition(): THREE.Vector3 {
         return this.marble.position.clone();
+    }
+    
+    public switchLandscape(themeName: string): boolean {
+        return this.landscapeManager.switchTheme(themeName);
+    }
+    
+    public getAvailableLandscapes(): string[] {
+        return this.landscapeManager.getAvailableThemes();
     }
     
     private updatePathSurfaceHeight(): void {
@@ -449,12 +318,11 @@ export class GameEngine {
         if (!isOnValidSegment) {
             // Marble is in a gap - set very low surface height to make it fall
             this.marblePhysics.setPathSurfaceHeight(-1000);
-            console.log('Marble is in a gap! Setting low surface height.');
+            // Marble is in a gap - setting low surface height
             return;
         }
         
-        // Debug: Log when marble is on valid path
-        // console.log('Marble is on valid path segment');
+        // Marble is on valid path segment
         
         // Marble is on valid path - find the closest path point for surface height
         let closestDistance = Infinity;
@@ -517,7 +385,7 @@ export class GameEngine {
             }
         }
         
-        console.log('No valid segments found, using fallback position');
+        // No valid segments found, using fallback position
         return new THREE.Vector3(0, 2, 0);
     }
     
@@ -533,7 +401,7 @@ export class GameEngine {
             return this.isMarbleNearAnyPathPoint(chunk.points, marblePos);
         }
         
-        // console.log(`Checking ${chunk.segments.length} path segments for marble collision`);
+        // Check path segments for marble collision
         
         const marbleRadius = 0.5; // Match marble physics radius
         const pathWidthTolerance = 1.0; // More generous tolerance for solid path

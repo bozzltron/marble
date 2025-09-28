@@ -4,14 +4,7 @@ import { InputState } from '../physics/MarblePhysics';
 export class InputManager {
     private keys: { [key: string]: boolean } = {};
     private touchInput: { x: number; z: number; active: boolean } = { x: 0, z: 0, active: false };
-    private lastTouchX: number = 0;
-    private lastTouchY: number = 0;
-    private touchSensitivity: number = 0.002;
-    private keyboardAcceleration: number = 1.0;
-    
-    // Smoothing for touch input
-    private smoothedTouchInput: { x: number; z: number } = { x: 0, z: 0 };
-    private touchSmoothingFactor: number = 0.15;
+    private keyboardAcceleration: number = 3.5; // Very aggressive keyboard steering
     
     // Jump input state
     private jumpPressed: boolean = false;
@@ -33,10 +26,6 @@ export class InputManager {
         window.addEventListener('touchend', this.onTouchEnd.bind(this), { passive: false });
         window.addEventListener('touchcancel', this.onTouchEnd.bind(this), { passive: false });
         
-        // Mouse events (for desktop testing)
-        window.addEventListener('mousedown', this.onMouseDown.bind(this));
-        window.addEventListener('mousemove', this.onMouseMove.bind(this));
-        window.addEventListener('mouseup', this.onMouseUp.bind(this));
         
         // Prevent context menu on long press
         window.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -63,9 +52,6 @@ export class InputManager {
         
         if (event.touches.length === 1) {
             const touch = event.touches[0];
-            this.lastTouchX = touch.clientX;
-            this.lastTouchY = touch.clientY;
-            
             // Determine if this is a tap for steering or jumping
             this.handleTouchTap(touch.clientX, touch.clientY);
         }
@@ -79,28 +65,28 @@ export class InputManager {
         const rightZone = screenWidth * 0.67;
         
         if (x < leftZone) {
-            // Left tap - steer left with stronger force
+            // Left tap - extremely aggressive left steering
             this.touchInput.active = true;
-            this.touchInput.x = -1.5; // Much stronger left steering
+            this.touchInput.x = -4.0; // Extremely aggressive left steering
             this.touchInput.z = 0;
             
-            // Hold steering longer for better response
+            // Hold steering longer for maximum effect
             setTimeout(() => {
                 this.touchInput.active = false;
                 this.touchInput.x = 0;
-            }, 400);
+            }, 600);
             
         } else if (x > rightZone) {
-            // Right tap - steer right with stronger force
+            // Right tap - extremely aggressive right steering
             this.touchInput.active = true;
-            this.touchInput.x = 1.5; // Much stronger right steering
+            this.touchInput.x = 4.0; // Extremely aggressive right steering
             this.touchInput.z = 0;
             
-            // Hold steering longer for better response
+            // Hold steering longer for maximum effect
             setTimeout(() => {
                 this.touchInput.active = false;
                 this.touchInput.x = 0;
-            }, 400);
+            }, 600);
             
         } else {
             // Center tap - jump
@@ -120,43 +106,6 @@ export class InputManager {
         // Input is handled immediately in onTouchStart, no need for end processing
     }
     
-    // Mouse events for desktop testing
-    private mouseDown: boolean = false;
-    
-    private onMouseDown(event: MouseEvent): void {
-        this.mouseDown = true;
-        this.lastTouchX = event.clientX;
-        this.lastTouchY = event.clientY;
-        this.touchInput.active = true;
-    }
-    
-    private onMouseMove(event: MouseEvent): void {
-        if (!this.mouseDown) return;
-        
-        const deltaX = event.clientX - this.lastTouchX;
-        const deltaY = event.clientY - this.lastTouchY;
-        
-        const rawInputX = deltaX * this.touchSensitivity;
-        const rawInputZ = deltaY * this.touchSensitivity;
-        
-        this.smoothedTouchInput.x = this.lerp(this.smoothedTouchInput.x, rawInputX, this.touchSmoothingFactor);
-        this.smoothedTouchInput.z = this.lerp(this.smoothedTouchInput.z, rawInputZ, this.touchSmoothingFactor);
-        
-        this.touchInput.x = this.smoothedTouchInput.x;
-        this.touchInput.z = this.smoothedTouchInput.z;
-        
-        this.lastTouchX = event.clientX;
-        this.lastTouchY = event.clientY;
-    }
-    
-    private onMouseUp(_event: MouseEvent): void {
-        this.mouseDown = false;
-        this.touchInput.active = false;
-        this.touchInput.x = 0;
-        this.touchInput.z = 0;
-        this.smoothedTouchInput.x = 0;
-        this.smoothedTouchInput.z = 0;
-    }
     
     private onVisibilityChange(): void {
         if (document.hidden) {
@@ -165,7 +114,6 @@ export class InputManager {
             this.touchInput.active = false;
             this.touchInput.x = 0;
             this.touchInput.z = 0;
-            this.mouseDown = false;
         }
     }
     
@@ -177,9 +125,6 @@ export class InputManager {
         }
     }
     
-    private lerp(a: number, b: number, factor: number): number {
-        return a + (b - a) * factor;
-    }
     
     public getInput(_pathDirection?: THREE.Vector3): InputState {
         let inputX = 0;
@@ -203,7 +148,7 @@ export class InputManager {
         
         // Touch input (mobile) - only horizontal steering
         if (this.touchInput.active) {
-            inputX = this.touchInput.x * 2; // Amplify touch sensitivity for steering
+            inputX = this.touchInput.x * 5; // Extremely aggressive touch sensitivity for steering
             active = true;
             // Touch steering active
         }
@@ -231,13 +176,6 @@ export class InputManager {
         this.keys[' '] = false;
     }
     
-    public setTouchSensitivity(sensitivity: number): void {
-        this.touchSensitivity = Math.max(0.0001, Math.min(0.01, sensitivity));
-    }
-    
-    public getTouchSensitivity(): number {
-        return this.touchSensitivity;
-    }
     
     public setKeyboardAcceleration(acceleration: number): void {
         this.keyboardAcceleration = Math.max(0.1, Math.min(2.0, acceleration));
@@ -247,25 +185,6 @@ export class InputManager {
         return this.keyboardAcceleration;
     }
     
-    // Auto-adjust sensitivity based on device
-    public autoAdjustSensitivity(): void {
-        const isMobile = 'ontouchstart' in window;
-        const isTablet = window.innerWidth > 768 && isMobile;
-        
-        if (isMobile && !isTablet) {
-            // Phone - higher sensitivity for smaller screens
-            this.touchSensitivity = 0.003;
-            this.touchSmoothingFactor = 0.2;
-        } else if (isTablet) {
-            // Tablet - medium sensitivity
-            this.touchSensitivity = 0.002;
-            this.touchSmoothingFactor = 0.15;
-        } else {
-            // Desktop - lower sensitivity for mouse
-            this.touchSensitivity = 0.001;
-            this.touchSmoothingFactor = 0.1;
-        }
-    }
     
     public cleanup(): void {
         // Remove event listeners
@@ -275,9 +194,6 @@ export class InputManager {
         window.removeEventListener('touchmove', this.onTouchMove.bind(this));
         window.removeEventListener('touchend', this.onTouchEnd.bind(this));
         window.removeEventListener('touchcancel', this.onTouchEnd.bind(this));
-        window.removeEventListener('mousedown', this.onMouseDown.bind(this));
-        window.removeEventListener('mousemove', this.onMouseMove.bind(this));
-        window.removeEventListener('mouseup', this.onMouseUp.bind(this));
         document.removeEventListener('visibilitychange', this.onVisibilityChange.bind(this));
     }
 }

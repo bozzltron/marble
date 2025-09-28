@@ -10,9 +10,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="theme-color" content="#000000">
     
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/manifest.json">
-    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    <!-- PWA Manifest - Vite PWA plugin will inject these automatically -->
     
     <!-- SEO Meta Tags -->
     <meta name="description" content="A WebGL marble rolling game inspired by the classic Marble Madness. Roll your marble through procedurally generated paths with intuitive touch controls.">
@@ -70,7 +68,7 @@
             border-radius: 8px;
         }
         
-        .reset-button {
+        .reset-button, .landscape-button {
             background: rgba(255, 255, 255, 0.2);
             border: 2px solid rgba(255, 255, 255, 0.5);
             color: white;
@@ -80,9 +78,10 @@
             font-family: Arial, sans-serif;
             cursor: pointer;
             touch-action: manipulation;
+            margin: 5px;
         }
         
-        .reset-button:active {
+        .reset-button:active, .landscape-button:active {
             background: rgba(255, 255, 255, 0.4);
         }
         
@@ -94,30 +93,53 @@
     </style>
 </head>
 <body>
-    <div class="mobile-controls">
+        <div class="mobile-controls">
             <div class="control-instructions">
                 Tap left side to steer left<br>
                 Tap right side to steer right<br>
                 Tap center (marble) to jump<br>
                 Tap reset to restart
             </div>
-        <button class="reset-button" id="resetButton">Reset</button>
-    </div>
+            <button class="reset-button" id="resetButton">Reset</button>
+            <button class="landscape-button" id="landscapeButton">Switch to Space</button>
+        </div>
         <script type="module" src="/src/main.ts"></script>
         
-        <!-- Service Worker Registration -->
+        <!-- Vite PWA plugin will handle service worker registration automatically -->
+        
+        <!-- Game controls setup -->
         <script>
-            if ('serviceWorker' in navigator) {
-                window.addEventListener('load', () => {
-                    navigator.serviceWorker.register('/sw.js')
-                        .then((registration) => {
-                            console.log('SW registered: ', registration);
-                        })
-                        .catch((registrationError) => {
-                            console.log('SW registration failed: ', registrationError);
-                        });
-                });
-            }
+            window.addEventListener('load', () => {
+                // Wait for game engine to be available
+                const checkGameEngine = () => {
+                    if (window.gameEngine) {
+                        // Reset button functionality
+                        const resetButton = document.getElementById('resetButton');
+                        if (resetButton) {
+                            resetButton.addEventListener('click', () => {
+                                window.gameEngine.resetMarble();
+                            });
+                        }
+                        
+                        // Landscape switching functionality
+                        const landscapeButton = document.getElementById('landscapeButton');
+                        let currentLandscape = 'mountain';
+                        if (landscapeButton) {
+                            landscapeButton.addEventListener('click', () => {
+                                const newLandscape = currentLandscape === 'mountain' ? 'space' : 'mountain';
+                                if (window.gameEngine.switchLandscape(newLandscape)) {
+                                    currentLandscape = newLandscape;
+                                    landscapeButton.textContent = `Switch to ${currentLandscape === 'mountain' ? 'Space' : 'Mountain'}`;
+                                }
+                            });
+                        }
+                    } else {
+                        // Check again in 100ms
+                        setTimeout(checkGameEngine, 100);
+                    }
+                };
+                checkGameEngine();
+            });
         </script>
     </body>
 </html>
