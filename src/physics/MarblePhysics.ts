@@ -287,7 +287,7 @@ export class MarblePhysics {
         // Check if we've fallen far enough or too long to reset
         const fallTime = Date.now() - this.fallStartTime;
         const hasFallenTooLong = fallTime > this.fallTimeout;
-        const hasFallenTooFar = this.marble.position.y < -20; // Reset sooner
+        const hasFallenTooFar = this.marble.position.y < -100; // Account for new elevation limits
         
         if (hasFallenTooLong || hasFallenTooFar) {
             this.resetAfterFall();
@@ -318,11 +318,11 @@ export class MarblePhysics {
         if (this.checkpointUpdateTimer >= this.checkpointUpdateInterval) {
             const marbleBottom = this.marble.position.y - this.marbleRadius;
             const isOnGround = marbleBottom <= this.pathSurfaceHeight + 0.5;
-            const isMovingForward = this.velocity.z < -0.01; // Negative Z is forward
             const isOnValidPath = this.pathSurfaceHeight > -500; // Not in a gap
             
-            if (isOnGround && isOnValidPath && (isMovingForward || this.velocity.length() < 0.01)) {
+            if (isOnGround && isOnValidPath) {
                 // Save current position as safe checkpoint (only if on valid path)
+                // Removed movement requirement - save checkpoint whenever on valid ground
                 this.lastSafePosition.copy(this.marble.position);
                 this.checkpointUpdateTimer = 0;
                 // Safe checkpoint saved

@@ -7,9 +7,9 @@ A relaxing, focus-enhancing marble rolling game inspired by the classic Marble M
 - ✅ **Auto-Forward Rolling**: Marble rolls forward automatically at constant speed
 - ✅ **Path-Following Camera**: Camera rotates with path curves for intuitive controls  
 - ✅ **Left/Right Steering**: Simplified controls - only steer left/right and jump
-- ✅ **Mobile Touch Controls**: Swipe left/right to steer, two-finger tap to jump
-- ✅ **Procedural Path Generation**: Infinite winding paths with gaps and terrain variety
-- ✅ **Gap Jumping**: Jump over gaps or fall and reset from checkpoint
+- ✅ **Mobile Touch Controls**: Tap left/right zones to steer, tap center to jump
+- ✅ **Procedural Path Generation**: Infinite winding paths with smooth continuous surface
+- ✅ **Falling & Reset**: Fall off path edges and reset from checkpoint
 - ✅ **PWA Ready**: Service worker, manifest, installable as app
 - ✅ **Cloudflare Pages Deployment**: Git-based deployment ready
 
@@ -41,7 +41,7 @@ A relaxing, focus-enhancing marble rolling game inspired by the classic Marble M
 
 ### Marble Controls (CURRENT IMPLEMENTATION)
 - **Auto-Forward**: Marble rolls forward automatically along path direction
-- **Mobile**: Swipe left/right to steer, two-finger tap to jump
+- **Mobile**: Tap left/right screen zones to steer, tap center (marble) to jump
 - **Desktop**: A/D or arrow keys to steer, spacebar to jump
 - **Physics**: Realistic marble physics with momentum, friction, and gravity
 - **Path-Aligned**: All movement relative to current path direction

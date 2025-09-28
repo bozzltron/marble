@@ -9,6 +9,8 @@ export interface LandscapeTheme {
     getSkyboxColors(): { horizon: string; zenith: string };
     getAmbientLightColor(): number;
     getAmbientLightIntensity(): number;
+    // New method for dynamic background extension
+    extendBackground(scene: THREE.Scene, marblePosition: THREE.Vector3, pathDirection: THREE.Vector3): void;
 }
 
 export class LandscapeManager {
@@ -85,6 +87,11 @@ export class LandscapeManager {
     public getPathMaterial(): THREE.Material {
         return this.currentTheme.getPathMaterial();
     }
+    
+    // New method to extend background dynamically
+    public updateBackground(marblePosition: THREE.Vector3, pathDirection: THREE.Vector3): void {
+        this.currentTheme.extendBackground(this.scene, marblePosition, pathDirection);
+    }
 }
 
 class MountainLandscape implements LandscapeTheme {
@@ -101,6 +108,14 @@ class MountainLandscape implements LandscapeTheme {
         // Mountain theme is clean and minimal - no terrain objects
         // Just the marble, path, and scenic mountain backdrop
         return [];
+    }
+    
+    extendBackground(scene: THREE.Scene, marblePosition: THREE.Vector3, pathDirection: THREE.Vector3): void {
+        // For mountain theme, we need to extend clouds and distant mountains ahead of the marble
+        this.extendClouds(scene, marblePosition, pathDirection);
+        this.extendDistantMountains(scene, marblePosition, pathDirection);
+        // Most importantly, keep the skybox centered on the marble
+        this.updateSkyboxPosition(scene, marblePosition);
     }
     
     getPathMaterial(): THREE.Material {
@@ -148,6 +163,7 @@ class MountainLandscape implements LandscapeTheme {
         
         const skybox = new THREE.Mesh(geometry, material);
         skybox.userData.isBackground = true;
+        skybox.userData.type = 'skybox';
         scene.add(skybox);
     }
     
@@ -261,6 +277,62 @@ class MountainLandscape implements LandscapeTheme {
         scene.add(directionalLight);
     }
     
+    private extendClouds(scene: THREE.Scene, marblePosition: THREE.Vector3, pathDirection: THREE.Vector3): void {
+        // Generate clouds ahead of the marble's current position
+        const aheadDistance = 800; // Generate clouds 800 units ahead
+        const cloudPosition = marblePosition.clone().add(pathDirection.clone().multiplyScalar(aheadDistance));
+        
+        // Check if we need more clouds in this area
+        const existingClouds = scene.children.filter(child => 
+            child.userData.type === 'cloud' && 
+            child.position.distanceTo(cloudPosition) < 400
+        );
+        
+        if (existingClouds.length < 3) {
+            // Generate 2-3 new clouds ahead
+            for (let i = 0; i < 3; i++) {
+                const cloud = this.createMountainCloud();
+                const offsetX = (Math.random() - 0.5) * 600;
+                const offsetZ = (Math.random() - 0.5) * 600;
+                cloud.position.set(
+                    cloudPosition.x + offsetX,
+                    40 + Math.random() * 30,
+                    cloudPosition.z + offsetZ
+                );
+                cloud.userData.type = 'cloud';
+                scene.add(cloud);
+            }
+        }
+    }
+    
+    private extendDistantMountains(scene: THREE.Scene, marblePosition: THREE.Vector3, pathDirection: THREE.Vector3): void {
+        // Generate distant mountain ranges ahead of the marble
+        const aheadDistance = 1200; // Generate mountains 1200 units ahead
+        const mountainPosition = marblePosition.clone().add(pathDirection.clone().multiplyScalar(aheadDistance));
+        
+        // Check if we need more mountains in this area
+        const existingMountains = scene.children.filter(child => 
+            child.userData.type === 'mountain' && 
+            child.position.distanceTo(mountainPosition) < 600
+        );
+        
+        if (existingMountains.length < 2) {
+            // Generate new mountain range ahead
+            const mountainRange = this.createMountainSilhouette('#4A4A4A', 0.8, 800);
+            mountainRange.userData.type = 'mountain';
+            scene.add(mountainRange);
+        }
+    }
+    
+    private updateSkyboxPosition(scene: THREE.Scene, marblePosition: THREE.Vector3): void {
+        // Find the mountain skybox and update its position to follow the marble
+        scene.traverse((child) => {
+            if (child.userData.isBackground && child.userData.type === 'skybox') {
+                child.position.copy(marblePosition);
+            }
+        });
+    }
+    
 }
 
 class SpaceLandscape implements LandscapeTheme {
@@ -283,6 +355,14 @@ class SpaceLandscape implements LandscapeTheme {
         terrain.push(...this.createEnergyFields(pathPoints, chunkId));
         
         return terrain;
+    }
+    
+    extendBackground(scene: THREE.Scene, marblePosition: THREE.Vector3, pathDirection: THREE.Vector3): void {
+        // For space theme, extend nebula clouds and distant planets ahead of the marble
+        this.extendNebulaClouds(scene, marblePosition, pathDirection);
+        this.extendDistantPlanets(scene, marblePosition, pathDirection);
+        // Most importantly, keep the skybox centered on the marble
+        this.updateSkyboxPosition(scene, marblePosition);
     }
     
     getPathMaterial(): THREE.Material {
@@ -331,6 +411,7 @@ class SpaceLandscape implements LandscapeTheme {
         
         const skybox = new THREE.Mesh(geometry, material);
         skybox.userData.isBackground = true;
+        skybox.userData.type = 'skybox';
         scene.add(skybox);
     }
     
@@ -576,5 +657,70 @@ class SpaceLandscape implements LandscapeTheme {
         field.position.copy(position);
         
         return field;
+    }
+    
+    private extendNebulaClouds(scene: THREE.Scene, marblePosition: THREE.Vector3, pathDirection: THREE.Vector3): void {
+        // Generate nebula clouds ahead of the marble's current position
+        const aheadDistance = 1000; // Generate clouds 1000 units ahead
+        const cloudPosition = marblePosition.clone().add(pathDirection.clone().multiplyScalar(aheadDistance));
+        
+        // Check if we need more nebula clouds in this area
+        const existingClouds = scene.children.filter(child => 
+            child.userData.type === 'nebula' && 
+            child.position.distanceTo(cloudPosition) < 500
+        );
+        
+        if (existingClouds.length < 2) {
+            // Generate new nebula clouds ahead
+            for (let i = 0; i < 2; i++) {
+                const nebula = this.createNebulaCloud();
+                const offsetX = (Math.random() - 0.5) * 800;
+                const offsetY = (Math.random() - 0.5) * 200;
+                const offsetZ = (Math.random() - 0.5) * 800;
+                nebula.position.set(
+                    cloudPosition.x + offsetX,
+                    cloudPosition.y + offsetY,
+                    cloudPosition.z + offsetZ
+                );
+                nebula.userData.type = 'nebula';
+                scene.add(nebula);
+            }
+        }
+    }
+    
+    private extendDistantPlanets(scene: THREE.Scene, marblePosition: THREE.Vector3, pathDirection: THREE.Vector3): void {
+        // Generate distant planets ahead of the marble
+        const aheadDistance = 1500; // Generate planets 1500 units ahead
+        const planetPosition = marblePosition.clone().add(pathDirection.clone().multiplyScalar(aheadDistance));
+        
+        // Check if we need more planets in this area
+        const existingPlanets = scene.children.filter(child => 
+            child.userData.type === 'planet' && 
+            child.position.distanceTo(planetPosition) < 800
+        );
+        
+        if (existingPlanets.length < 1) {
+            // Generate new distant planet
+            const planet = this.createPlanet(0x8B4513 + Math.random() * 0x444444, 50 + Math.random() * 100);
+            const offsetX = (Math.random() - 0.5) * 1000;
+            const offsetY = (Math.random() - 0.5) * 400;
+            const offsetZ = (Math.random() - 0.5) * 1000;
+            planet.position.set(
+                planetPosition.x + offsetX,
+                planetPosition.y + offsetY + 200, // Keep planets elevated
+                planetPosition.z + offsetZ
+            );
+            planet.userData.type = 'planet';
+            scene.add(planet);
+        }
+    }
+    
+    private updateSkyboxPosition(scene: THREE.Scene, marblePosition: THREE.Vector3): void {
+        // Find the space skybox and update its position to follow the marble
+        scene.traverse((child) => {
+            if (child.userData.isBackground && child.userData.type === 'skybox') {
+                child.position.copy(marblePosition);
+            }
+        });
     }
 }

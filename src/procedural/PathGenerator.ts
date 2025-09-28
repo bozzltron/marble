@@ -6,8 +6,6 @@ export interface PathPoint {
     width: number;
     banking: number; // Road banking for turns
     biome: string;
-    terrainType: 'ground' | 'elevated' | 'canopy' | 'bridge' | 'floating';
-    elevation: number; // Base elevation for terrain type
 }
 
 export interface PathChunk {
@@ -39,6 +37,10 @@ export class PathGenerator {
     private worldElevationScale: number = 0.0008; // Large elevation changes
     private worldCurvatureScale: number = 0.0005; // Large directional changes
     private localVariationScale: number = 0.003; // Small local variations
+    
+    // Realistic elevation limits (in game units)
+    private minElevation: number = -50; // Equivalent to ~500m below sea level
+    private maxElevation: number = 100; // Equivalent to ~1000m above sea level
     
     
     constructor(seed?: number) {
@@ -75,6 +77,9 @@ export class PathGenerator {
         let currentPos = this.lastPosition.clone();
         let currentDir = this.lastDirection.clone();
         
+        // Add slight randomization to prevent predictable patterns while maintaining continuity
+        const chunkVariation = Math.sin(this.currentDistance * 0.001) * 0.1;
+        
         // Generate path points using world-consistent noise
         for (let i = 0; i <= segmentCount; i++) {
             const t = i / segmentCount;
@@ -82,12 +87,12 @@ export class PathGenerator {
             // Calculate world position for this point
             const worldPos = currentPos.clone();
             
-            // Get world-consistent curvature and elevation
-            const curvature = this.getCurvatureAtWorldPosition(worldPos);
+            // Get world-consistent curvature and elevation with chunk variation
+            const curvature = this.getCurvatureAtWorldPosition(worldPos) + chunkVariation * Math.sin(t * Math.PI * 4);
             const elevation = this.getElevationAtWorldPosition(worldPos);
             
-            // Apply curvature based on world position, not distance
-            const turnAngle = curvature * 0.015; // Slightly reduced for smoother curves
+            // Apply curvature based on world position - more aggressive for better coiling
+            const turnAngle = curvature * 0.035; // Increased for more pronounced coiling
             currentDir.applyAxisAngle(new THREE.Vector3(0, 1, 0), turnAngle);
             currentDir.normalize();
             
@@ -95,8 +100,8 @@ export class PathGenerator {
             const stepVector = currentDir.clone().multiplyScalar(segmentLength);
             currentPos.add(stepVector);
             
-            // Apply world-consistent elevation
-            currentPos.y = elevation;
+            // Apply world-consistent elevation with realistic limits
+            currentPos.y = Math.max(this.minElevation, Math.min(this.maxElevation, elevation));
             
             // Calculate path width (varies for difficulty)
             const width = this.getPathWidthAtDistance(this.currentDistance + t * this.chunkLength);
@@ -107,35 +112,34 @@ export class PathGenerator {
             // Determine biome (keep it simple)
             const biome = 'default'; // Simplified - no biome progression needed
             
-            // Keep elevation simple - just use the calculated elevation
-            currentPos.y = elevation;
-            
             points.push({
                 position: currentPos.clone(),
                 width: width,
                 banking: banking,
-                biome: biome,
-                terrainType: 'ground', // Simplify - always ground level
-                elevation: 0 // No additional elevation
+                biome: biome
             });
         }
         
-        // Update state for next chunk - ensure smooth transitions
+        // Update state for next chunk - ensure perfectly smooth transitions
         this.lastPosition = points[points.length - 1].position.clone();
         this.lastDirection = currentDir.clone();
         this.currentDistance += this.chunkLength;
         this.difficulty = Math.min(this.currentDistance / 10000, 1); // Max difficulty at 10km
         
-        // Smooth the connection between chunks by adjusting the last point
-        if (points.length > 1) {
-            const lastPoint = points[points.length - 1];
-            const secondLastPoint = points[points.length - 2];
+        // Advanced smoothing: blend the last few points to ensure seamless transitions
+        if (points.length > 3) {
+            // Calculate average direction from last 3 points for smoother transitions
+            const p1 = points[points.length - 3].position;
+            const p2 = points[points.length - 2].position;
+            const p3 = points[points.length - 1].position;
             
-            // Calculate smooth direction for next chunk
-            const chunkDirection = new THREE.Vector3()
-                .subVectors(lastPoint.position, secondLastPoint.position)
+            const dir1 = new THREE.Vector3().subVectors(p2, p1).normalize();
+            const dir2 = new THREE.Vector3().subVectors(p3, p2).normalize();
+            
+            // Blend directions for smoother continuity
+            this.lastDirection = new THREE.Vector3()
+                .addVectors(dir1.multiplyScalar(0.3), dir2.multiplyScalar(0.7))
                 .normalize();
-            this.lastDirection = chunkDirection;
         }
         
         // Generate meshes for this chunk
@@ -160,17 +164,23 @@ export class PathGenerator {
         const x = worldPos.x + this.noiseOffsetX;
         const z = worldPos.z + this.noiseOffsetZ;
         
-        // Multiple octaves of noise based on world position
+        // Multiple octaves of noise for more interesting coiling patterns
+        // Large sweeping curves that create major coils
         const largeCurves = Math.sin(x * this.worldCurvatureScale * Math.PI * 2) * 
-                           Math.cos(z * this.worldCurvatureScale * Math.PI * 2) * 0.12;
+                           Math.cos(z * this.worldCurvatureScale * Math.PI * 2) * 0.25; // Increased from 0.12
         
-        const mediumCurves = Math.sin(x * this.worldCurvatureScale * 2.3 * Math.PI * 2) * 
-                            Math.cos(z * this.worldCurvatureScale * 1.7 * Math.PI * 2) * 0.06;
+        // Medium curves that create secondary coiling
+        const mediumCurves = Math.sin(x * this.worldCurvatureScale * 3.1 * Math.PI * 2) * 
+                            Math.cos(z * this.worldCurvatureScale * 2.7 * Math.PI * 2) * 0.15; // Increased from 0.06
         
-        const smallCurves = Math.sin(x * this.localVariationScale * Math.PI * 2) * 
-                           Math.cos(z * this.localVariationScale * 1.3 * Math.PI * 2) * 0.03;
+        // Small tight curves for detailed coiling
+        const smallCurves = Math.sin(x * this.localVariationScale * 2.1 * Math.PI * 2) * 
+                           Math.cos(z * this.localVariationScale * 1.8 * Math.PI * 2) * 0.08; // Increased from 0.03
         
-        return largeCurves + mediumCurves + smallCurves;
+        // Add spiral-like coiling patterns
+        const spiralCurves = Math.sin(x * this.worldCurvatureScale * 4.7 * Math.PI * 2 + z * 0.1) * 0.12;
+        
+        return largeCurves + mediumCurves + smallCurves + spiralCurves;
     }
     
     private getElevationAtWorldPosition(worldPos: THREE.Vector3): number {
@@ -208,25 +218,8 @@ export class PathGenerator {
         for (let i = 0; i < points.length; i++) {
             const point = points[i];
             
-            // Determine if we should create a gap here
-            const shouldCreateGap = this.shouldCreateGap(point, i, points.length);
-            
-            if (shouldCreateGap && currentSegment.length > 3) { // Need more points for stable segment
-                // End current segment and start a new one after the gap
-                segments.push([...currentSegment]);
-                currentSegment = [];
-                
-                // Create a meaningful gap that requires jumping
-                const gapSize = this.getGapSize(point.terrainType, point.biome);
-                
-                // Gap created in path geometry
-                
-                // Skip points to create the actual gap in path data
-                i += gapSize - 1; // -1 because the loop will increment
-                continue;
-            }
-            
-            currentSegment.push(point);
+        // For chill gameplay, no gaps - just add all points to single segment
+        currentSegment.push(point);
         }
         
         // Add the final segment if it has points
@@ -243,30 +236,6 @@ export class PathGenerator {
         return segments;
     }
     
-    private shouldCreateGap(_point: PathPoint, _index: number, _totalPoints: number): boolean {
-        // For chill gameplay, no gaps - just continuous flowing path
-        return false;
-    }
-    
-    private getGapSize(terrainType: string, biome: string): number {
-        // Gap size in number of path points to skip
-        const baseGapSizes: { [key: string]: number } = {
-            'ground': 2,
-            'elevated': 3,
-            'canopy': 4,
-            'bridge': 5,
-            'floating': 6
-        };
-        
-        let gapSize = baseGapSizes[terrainType] || 3;
-        
-        // Cosmic biome has larger gaps
-        if (biome === 'cosmic') {
-            gapSize += 2;
-        }
-        
-        return gapSize;
-    }
     
     private generateChunkMeshes(points: PathPoint[]): THREE.Mesh[] {
         const meshes: THREE.Mesh[] = [];

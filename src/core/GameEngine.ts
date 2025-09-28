@@ -215,8 +215,10 @@ export class GameEngine {
         // Get input with cached path-relative transformation
         const input = this.inputManager.getInput(this.cachedPathDirection);
         
-        // Update path surface height for marble physics
-        this.updatePathSurfaceHeight();
+        // Update path surface height less frequently for performance
+        if (this.frameCount % 3 === 0) { // Every 3 frames for responsive collision
+            this.updatePathSurfaceHeight();
+        }
         
         // Update marble physics
         this.marblePhysics.update(deltaTime, input);
@@ -227,6 +229,11 @@ export class GameEngine {
         // Manage path chunks less frequently for performance
         if (this.frameCount % 10 === 0) { // Every 10 frames instead of every frame
             this.chunkManager.update(this.marble.position);
+        }
+        
+        // Update landscape background to extend ahead of marble
+        if (this.frameCount % 20 === 0) { // Every 20 frames for smooth background extension
+            this.landscapeManager.updateBackground(this.marble.position, this.cachedPathDirection);
         }
         
         // Update audio less frequently

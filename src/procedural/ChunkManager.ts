@@ -7,9 +7,9 @@ export class ChunkManager {
     private pathGenerator: PathGenerator;
     private landscapeManager: LandscapeManager;
     private activeChunks: Map<string, PathChunk> = new Map();
-    private maxActiveChunks: number = 10; // Even more chunks to ensure infinite generation
-    private chunkLoadDistance: number = 600; // Load chunks much earlier - user should never see end
-    private chunkUnloadDistance: number = 1000; // Keep chunks longer for smoother experience
+    private maxActiveChunks: number = 15; // Many more chunks for true infinite feel
+    private chunkLoadDistance: number = 1200; // Much larger look-ahead distance - 6x chunk length
+    private chunkUnloadDistance: number = 1500; // Keep even more chunks for smoother experience
     private nextChunkId: number = 0;
     
     constructor(scene: THREE.Scene, pathGenerator: PathGenerator, landscapeManager: LandscapeManager) {
@@ -23,7 +23,7 @@ export class ChunkManager {
     
     public initialize(): void {
         // Generate many initial chunks to ensure user never sees path end
-        for (let i = 0; i < 8; i++) {
+        for (let i = 0; i < 12; i++) {
             this.generateNextChunk();
         }
     }
@@ -56,8 +56,8 @@ export class ChunkManager {
         if (furthestChunk) {
             const distanceToEnd = marblePosition.distanceTo(furthestChunk.endPosition);
             if (distanceToEnd < this.chunkLoadDistance) {
-                // Generate multiple chunks to ensure we stay well ahead
-                for (let i = 0; i < 3; i++) {
+                // Generate many chunks to ensure we stay well ahead - user should never see end
+                for (let i = 0; i < 5; i++) {
                     this.generateNextChunk();
                 }
             }
