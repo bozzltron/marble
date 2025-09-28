@@ -40,6 +40,10 @@ export class MarblePhysics {
     private checkpointUpdateTimer: number = 0;
     private checkpointUpdateInterval: number = 0.5; // Update checkpoint every 0.5 seconds
     
+    // Performance optimization - reuse objects to avoid allocations
+    private tempVector: THREE.Vector3 = new THREE.Vector3();
+    private tempVector2: THREE.Vector3 = new THREE.Vector3();
+    
     public initialize(marble: THREE.Mesh): void {
         this.marble = marble;
         this.reset();
@@ -111,25 +115,24 @@ export class MarblePhysics {
     private applyInputForces(input: InputState, deltaTime: number): void {
         // Always apply constant forward motion along the path
         const pathDirection = this.getPathDirection();
-        const forwardForce = pathDirection.clone().multiplyScalar(this.autoForwardSpeed);
         
-        // Auto-forward motion applied
+        // Use temp vector to avoid allocation
+        this.tempVector.copy(pathDirection).multiplyScalar(this.autoForwardSpeed);
         
         // Apply auto-forward motion directly to velocity
-        this.velocity.x = forwardForce.x;
-        this.velocity.z = forwardForce.z;
+        this.velocity.x = this.tempVector.x;
+        this.velocity.z = this.tempVector.z;
         
         // Apply left/right steering if input is active
         if (input.active && Math.abs(input.x) > 0.01) {
-            // Calculate right vector (perpendicular to path direction)
-            const rightVector = new THREE.Vector3()
-                .crossVectors(pathDirection, new THREE.Vector3(0, 1, 0))
-                .normalize();
+            // Calculate right vector (perpendicular to path direction) - reuse temp vector
+            this.tempVector2.set(0, 1, 0);
+            this.tempVector.crossVectors(pathDirection, this.tempVector2).normalize();
             
             // Apply steering force
-            const steeringForce = rightVector.multiplyScalar(input.x * this.acceleration * deltaTime * 60);
-            this.velocity.x += steeringForce.x;
-            this.velocity.z += steeringForce.z;
+            this.tempVector.multiplyScalar(input.x * this.acceleration * deltaTime * 60);
+            this.velocity.x += this.tempVector.x;
+            this.velocity.z += this.tempVector.z;
         }
     }
     
@@ -182,9 +185,9 @@ export class MarblePhysics {
     private updatePosition(deltaTime: number): void {
         if (!this.marble) return;
         
-        // Update position based on velocity
-        const deltaPosition = this.velocity.clone().multiplyScalar(deltaTime * 60);
-        this.marble.position.add(deltaPosition);
+        // Update position based on velocity (reuse temp vector to avoid allocation)
+        this.tempVector.copy(this.velocity).multiplyScalar(deltaTime * 60);
+        this.marble.position.add(this.tempVector);
     }
     
     private handleGroundCollision(): void {

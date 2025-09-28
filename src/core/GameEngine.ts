@@ -23,6 +23,17 @@ export class GameEngine {
     private frameCount: number = 0;
     private lastFPSUpdate: number = 0;
     
+    // Performance optimizations - cache expensive calculations
+    private isMobile: boolean = false;
+    private cachedPathDirection: THREE.Vector3 = new THREE.Vector3(0, 0, -1);
+    private pathDirectionUpdateTimer: number = 0;
+    private pathDirectionUpdateInterval: number = 0.1; // Update every 100ms instead of every frame
+    
+    // Reusable vectors to avoid allocations in camera update
+    private tempCameraOffset: THREE.Vector3 = new THREE.Vector3();
+    private tempTargetPosition: THREE.Vector3 = new THREE.Vector3();
+    private tempLookTarget: THREE.Vector3 = new THREE.Vector3();
+    
     constructor() {
         this.initializeRenderer();
         this.initializeScene();
@@ -30,6 +41,9 @@ export class GameEngine {
         this.initializeManagers();
         this.initializeMarble();
         this.setupEventListeners();
+        
+        // Initialize cached values
+        this.isMobile = window.innerWidth <= 768;
     }
     
     private initializeRenderer(): void {
@@ -265,6 +279,9 @@ export class GameEngine {
         this.camera.updateProjectionMatrix();
         this.renderer.setSize(window.innerWidth, window.innerHeight);
         
+        // Update cached mobile detection
+        this.isMobile = window.innerWidth <= 768;
+        
         // Adjust pixel ratio for performance
         this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     }
@@ -307,8 +324,11 @@ export class GameEngine {
         if (!this.isRunning) return;
         
         const currentTime = performance.now();
-        const deltaTime = (currentTime - this.lastTime) / 1000;
+        let deltaTime = (currentTime - this.lastTime) / 1000;
         this.lastTime = currentTime;
+        
+        // Cap delta time to prevent large jumps (e.g., when tab becomes inactive)
+        deltaTime = Math.min(deltaTime, 1/30); // Max 30fps equivalent
         
         // Update game systems
         this.update(deltaTime, currentTime);
@@ -321,14 +341,18 @@ export class GameEngine {
     }
     
     private update(deltaTime: number, _currentTime: number): void {
-        // Get path direction for input transformation and physics
-        const pathDirection = this.chunkManager.getPathDirectionAtPosition(this.marble.position);
+        // Update cached path direction periodically instead of every frame
+        this.pathDirectionUpdateTimer += deltaTime;
+        if (this.pathDirectionUpdateTimer >= this.pathDirectionUpdateInterval) {
+            this.cachedPathDirection = this.chunkManager.getPathDirectionAtPosition(this.marble.position);
+            this.pathDirectionUpdateTimer = 0;
+        }
         
-        // Update marble physics with current path direction
-        this.marblePhysics.setPathDirection(pathDirection);
+        // Update marble physics with cached path direction
+        this.marblePhysics.setPathDirection(this.cachedPathDirection);
         
-        // Get input with path-relative transformation
-        const input = this.inputManager.getInput(pathDirection);
+        // Get input with cached path-relative transformation
+        const input = this.inputManager.getInput(this.cachedPathDirection);
         
         // Update path surface height for marble physics
         this.updatePathSurfaceHeight();
@@ -336,54 +360,53 @@ export class GameEngine {
         // Update marble physics
         this.marblePhysics.update(deltaTime, input);
         
-        // Boundary checking now integrated into updatePathSurfaceHeight()
-        
         // Update camera to follow marble smoothly
         this.updateCamera();
         
-        // Manage path chunks based on marble position
-        this.chunkManager.update(this.marble.position);
+        // Manage path chunks less frequently for performance
+        if (this.frameCount % 10 === 0) { // Every 10 frames instead of every frame
+            this.chunkManager.update(this.marble.position);
+        }
         
-        // Update audio based on marble movement
-        this.audioManager.update(this.marble.position, this.marblePhysics.getVelocity());
+        // Update audio less frequently
+        if (this.frameCount % 30 === 0) { // Every 30 frames (0.5 seconds at 60fps)
+            this.audioManager.update(this.marble.position, this.marblePhysics.getVelocity());
+        }
     }
     
     private updateCamera(): void {
         const marblePos = this.marble.position;
-        const isMobile = window.innerWidth <= 768;
         
-        // Get the path direction at marble's position
-        const pathDirection = this.chunkManager.getPathDirectionAtPosition(marblePos);
-        
-        // Path direction updated for camera alignment
+        // Use cached path direction instead of recalculating
+        const pathDirection = this.cachedPathDirection;
         
         // Camera follows path direction
-        const followDistance = isMobile ? 8 : 10;
-        const followHeight = isMobile ? 6 : 8;
+        const followDistance = this.isMobile ? 8 : 10;
+        const followHeight = this.isMobile ? 6 : 8;
         const followSpeed = 0.08; // Slightly slower for smoother turns
         
-        // Position camera behind marble along the path direction
-        const cameraOffset = pathDirection.clone()
+        // Position camera behind marble along the path direction (reuse temp vectors)
+        this.tempCameraOffset.copy(pathDirection)
             .negate() // Behind the marble
             .multiplyScalar(followDistance);
         
-        const targetPosition = new THREE.Vector3(
-            marblePos.x + cameraOffset.x,
+        this.tempTargetPosition.set(
+            marblePos.x + this.tempCameraOffset.x,
             marblePos.y + followHeight,
-            marblePos.z + cameraOffset.z
+            marblePos.z + this.tempCameraOffset.z
         );
         
-        this.camera.position.lerp(targetPosition, followSpeed);
+        this.camera.position.lerp(this.tempTargetPosition, followSpeed);
         
-        // Look ahead along the path direction
+        // Look ahead along the path direction (reuse temp vector)
         const lookAheadDistance = 3;
-        const lookTarget = new THREE.Vector3(
+        this.tempLookTarget.set(
             marblePos.x + (pathDirection.x * lookAheadDistance),
             marblePos.y,
             marblePos.z + (pathDirection.z * lookAheadDistance)
         );
         
-        this.camera.lookAt(lookTarget);
+        this.camera.lookAt(this.tempLookTarget);
     }
     
     private render(): void {
