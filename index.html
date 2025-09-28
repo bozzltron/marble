@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0, minimum-scale=1.0">
+    
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#000000">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icons/icon-192x192.png">
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="A WebGL marble rolling game inspired by the classic Marble Madness. Roll your marble through procedurally generated paths with intuitive touch controls.">
+    <meta name="keywords" content="marble game, webgl, game, three.js, mobile game, puzzle game, marble madness inspired">
+    <meta name="author" content="Marble Game Team">
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Marble Game - WebGL Rolling Game">
+    <meta property="og:description" content="Roll your marble through challenging procedurally generated paths in this game inspired by the classic Marble Madness.">
+    <meta property="og:type" content="website">
+    <meta property="og:image" content="/assets/marble-game-preview.jpg">
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Marble Game - WebGL Rolling Game">
+    <meta name="twitter:description" content="Roll your marble through challenging procedurally generated paths.">
+    
+    <title>Marble Game - WebGL Rolling Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #000;
+            touch-action: none; /* Prevent scrolling on mobile */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+            touch-action: none;
+        }
+        
+        /* Mobile controls overlay */
+        .mobile-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+        }
+        
+        .control-instructions {
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 12px;
+            border-radius: 8px;
+        }
+        
+        .reset-button {
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: Arial, sans-serif;
+            cursor: pointer;
+            touch-action: manipulation;
+        }
+        
+        .reset-button:active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-controls {
+                display: flex;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-controls">
+        <div class="control-instructions">
+            Drag to move the marble<br>
+            Two fingers to jump<br>
+            Tap reset to restart
+        </div>
+        <button class="reset-button" id="resetButton">Reset</button>
+    </div>
+        <script type="module" src="/src/main.ts"></script>
+        
+        <!-- Service Worker Registration -->
+        <script>
+            if ('serviceWorker' in navigator) {
+                window.addEventListener('load', () => {
+                    navigator.serviceWorker.register('/sw.js')
+                        .then((registration) => {
+                            console.log('SW registered: ', registration);
+                        })
+                        .catch((registrationError) => {
+                            console.log('SW registration failed: ', registrationError);
+                        });
+                });
+            }
+        </script>
+    </body>
+</html>

@@ -1,6 +1,6 @@
-# 🎳 Marble Madness
+# 🎳 Marble Game
 
-A modern WebGL implementation of the classic Marble Madness game, built with TypeScript and Three.js.
+A WebGL marble rolling game inspired by the classic Marble Madness, built with TypeScript and Three.js.
 
 ## 🎮 Features
 
@@ -26,27 +26,21 @@ npm run build:production
 
 ## 🌐 Deployment to Cloudflare Pages
 
-### Prerequisites
-1. Install Wrangler CLI: `npm install -g wrangler`
-2. Login to Cloudflare: `wrangler login`
-
-### Deploy to Production
-```bash
-npm run deploy
-```
-
-### Deploy Preview
-```bash
-npm run deploy:preview
-```
-
-### Manual Cloudflare Pages Setup
-1. Go to [Cloudflare Pages](https://pages.cloudflare.com/)
-2. Connect your Git repository
-3. Set build settings:
+### Git Integration Setup
+1. Push your code to a Git repository (GitHub, GitLab, etc.)
+2. Go to [Cloudflare Pages](https://pages.cloudflare.com/)
+3. Click "Connect to Git" and select your repository
+4. Configure build settings:
    - **Build command**: `npm run build:production`
    - **Build output directory**: `dist`
+   - **Root directory**: `/` (leave empty)
    - **Node.js version**: `18` or higher
+5. Click "Save and Deploy"
+
+### Automatic Deployments
+- **Main branch**: Automatically deploys to production
+- **Other branches**: Create preview deployments
+- **Pull requests**: Generate preview links for testing
 
 ## 🎯 Game Controls
 

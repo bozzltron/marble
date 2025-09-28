@@ -1,0 +1,23 @@
+{
+  "US": [
+    { "name": "New Year's Day", "date": "2024-01-01" },
+    { "name": "Martin Luther King Jr. Day", "date": "2024-01-15" },
+    { "name": "Independence Day", "date": "2024-07-04" },
+    { "name": "Thanksgiving", "date": "2024-11-28" },
+    { "name": "Christmas Day", "date": "2024-12-25" }
+  ],
+  "GB": [
+    { "name": "New Year's Day", "date": "2024-01-01" },
+    { "name": "Good Friday", "date": "2024-03-29" },
+    { "name": "Early May Bank Holiday", "date": "2024-05-06" },
+    { "name": "Christmas Day", "date": "2024-12-25" },
+    { "name": "Boxing Day", "date": "2024-12-26" }
+  ],
+  "JP": [
+    { "name": "New Year's Day", "date": "2024-01-01" },
+    { "name": "Coming of Age Day", "date": "2024-01-08" },
+    { "name": "Showa Day", "date": "2024-04-29" },
+    { "name": "Culture Day", "date": "2024-11-03" },
+    { "name": "Emperor's Birthday", "date": "2024-02-23" }
+  ]
+} 
