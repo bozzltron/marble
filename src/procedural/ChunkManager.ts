@@ -5,9 +5,9 @@ export class ChunkManager {
     private scene: THREE.Scene;
     private pathGenerator: PathGenerator;
     private activeChunks: Map<string, PathChunk> = new Map();
-    private maxActiveChunks: number = 5; // Memory limit
-    private chunkLoadDistance: number = 400; // Load chunks this far ahead
-    private chunkUnloadDistance: number = 600; // Unload chunks this far behind
+    private maxActiveChunks: number = 7; // More chunks for smoother infinite generation
+    private chunkLoadDistance: number = 300; // Load chunks earlier for seamless experience
+    private chunkUnloadDistance: number = 800; // Keep chunks longer for smoother experience
     private nextChunkId: number = 0;
     
     constructor(scene: THREE.Scene, pathGenerator: PathGenerator) {
@@ -16,8 +16,8 @@ export class ChunkManager {
     }
     
     public initialize(): void {
-        // Generate initial chunks
-        for (let i = 0; i < 3; i++) {
+        // Generate more initial chunks for seamless infinite experience
+        for (let i = 0; i < 5; i++) {
             this.generateNextChunk();
         }
     }

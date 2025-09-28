@@ -17,8 +17,6 @@ export class InputManager {
     private jumpPressed: boolean = false;
     private lastJumpTime: number = 0;
     private jumpCooldown: number = 200; // 200ms cooldown for touch jump
-    private touchStartTime: number = 0;
-    private tapThreshold: number = 200; // ms - max time for a tap vs drag
     
     constructor() {
         this.setupEventListeners();
@@ -67,55 +65,59 @@ export class InputManager {
             const touch = event.touches[0];
             this.lastTouchX = touch.clientX;
             this.lastTouchY = touch.clientY;
-            this.touchInput.active = true;
-            this.touchStartTime = Date.now();
             
-            // Reset smoothed input
-            this.smoothedTouchInput.x = 0;
-            this.smoothedTouchInput.z = 0;
+            // Determine if this is a tap for steering or jumping
+            this.handleTouchTap(touch.clientX, touch.clientY);
+        }
+    }
+    
+    private handleTouchTap(x: number, _y: number): void {
+        const screenWidth = window.innerWidth;
+        
+        // Divide screen into three zones: left, center (marble), right
+        const leftZone = screenWidth * 0.33;
+        const rightZone = screenWidth * 0.67;
+        
+        if (x < leftZone) {
+            // Left tap - steer left
+            this.touchInput.active = true;
+            this.touchInput.x = -0.5; // Steer left
+            this.touchInput.z = 0;
+            
+            // Auto-release after short duration
+            setTimeout(() => {
+                this.touchInput.active = false;
+                this.touchInput.x = 0;
+            }, 200);
+            
+        } else if (x > rightZone) {
+            // Right tap - steer right
+            this.touchInput.active = true;
+            this.touchInput.x = 0.5; // Steer right
+            this.touchInput.z = 0;
+            
+            // Auto-release after short duration
+            setTimeout(() => {
+                this.touchInput.active = false;
+                this.touchInput.x = 0;
+            }, 200);
+            
+        } else {
+            // Center tap - jump
+            this.handleJumpInput();
         }
     }
     
     private onTouchMove(event: TouchEvent): void {
         event.preventDefault();
-        
-        if (!this.touchInput.active || event.touches.length === 0) return;
-        
-        const touch = event.touches[0];
-        const deltaX = touch.clientX - this.lastTouchX;
-        
-        // Only process horizontal movement for steering
-        const rawInputX = deltaX * this.touchSensitivity;
-        
-        // Apply smoothing to reduce jitter
-        this.smoothedTouchInput.x = this.lerp(this.smoothedTouchInput.x, rawInputX, this.touchSmoothingFactor);
-        
-        this.touchInput.x = this.smoothedTouchInput.x;
-        this.touchInput.z = 0; // No vertical input needed
-        
-        // Touch input processed for steering
-        
-        this.lastTouchX = touch.clientX;
-        this.lastTouchY = touch.clientY;
+        // Touch move disabled for tap-based controls
+        // All input is handled by tap zones in onTouchStart
     }
     
     private onTouchEnd(event: TouchEvent): void {
         event.preventDefault();
-        
-        // Check if this was a quick tap (for jumping)
-        const touchDuration = Date.now() - this.touchStartTime;
-        const wasMoving = Math.abs(this.touchInput.x) > 0.1;
-        
-        if (touchDuration < this.tapThreshold && !wasMoving) {
-            // Quick tap without movement = jump
-            this.handleJumpInput();
-        }
-        
-        this.touchInput.active = false;
-        this.touchInput.x = 0;
-        this.touchInput.z = 0;
-        this.smoothedTouchInput.x = 0;
-        this.smoothedTouchInput.z = 0;
+        // Touch end simplified for tap-based controls
+        // Input is handled immediately in onTouchStart, no need for end processing
     }
     
     // Mouse events for desktop testing

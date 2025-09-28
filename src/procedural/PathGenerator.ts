@@ -123,15 +123,14 @@ export class PathGenerator {
     }
     
     private getCurvatureAtDistance(distance: number): number {
-        // Use multiple octaves of noise for natural curves
-        const scale1 = distance * 0.001;
-        const scale2 = distance * 0.003;
-        const scale3 = distance * 0.007;
+        // Very gentle, soothing curves for zen gameplay
+        const scale1 = distance * 0.0005; // Much slower curves
+        const scale2 = distance * 0.0012; // Gentle secondary curves
         
+        // Reduced amplitude for easier, more relaxing navigation
         return (
-            Math.sin(scale1) * 0.5 +
-            Math.sin(scale2) * 0.3 +
-            Math.sin(scale3) * 0.2
+            Math.sin(scale1) * 0.2 +
+            Math.sin(scale2) * 0.1
         );
     }
     
@@ -260,63 +259,56 @@ export class PathGenerator {
         const normals: number[] = [];
         const uvs: number[] = [];
         
-        // Create path mesh from points
-        for (let i = 0; i < points.length - 1; i++) {
-            const p1 = points[i];
-            const p2 = points[i + 1];
+        // Create smooth continuous path by generating shared vertices
+        // This eliminates gaps and notches between segments
+        
+        for (let i = 0; i < points.length; i++) {
+            const point = points[i];
             
-            // Calculate perpendicular vector for path width
-            const forward = new THREE.Vector3().subVectors(p2.position, p1.position).normalize();
+            // Calculate smooth forward direction
+            let forward: THREE.Vector3;
+            if (i === 0) {
+                forward = new THREE.Vector3().subVectors(points[i + 1].position, point.position).normalize();
+            } else if (i === points.length - 1) {
+                forward = new THREE.Vector3().subVectors(point.position, points[i - 1].position).normalize();
+            } else {
+                // Smooth direction by averaging adjacent segments
+                const prev = new THREE.Vector3().subVectors(point.position, points[i - 1].position).normalize();
+                const next = new THREE.Vector3().subVectors(points[i + 1].position, point.position).normalize();
+                forward = prev.add(next).normalize();
+            }
+            
+            // Calculate right vector perpendicular to forward
             const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize();
+            const halfWidth = point.width / 2;
             
-            // Create quad for this segment
-            const halfWidth1 = p1.width / 2;
-            const halfWidth2 = p2.width / 2;
+            // Create left and right vertices for this point
+            const leftVertex = point.position.clone().add(right.clone().multiplyScalar(-halfWidth));
+            const rightVertex = point.position.clone().add(right.clone().multiplyScalar(halfWidth));
             
-            // Apply banking
-            const bankingAngle1 = p1.banking;
-            const bankingAngle2 = p2.banking;
-            
-            // Left and right edges
-            const left1 = p1.position.clone().add(right.clone().multiplyScalar(-halfWidth1));
-            const right1 = p1.position.clone().add(right.clone().multiplyScalar(halfWidth1));
-            const left2 = p2.position.clone().add(right.clone().multiplyScalar(-halfWidth2));
-            const right2 = p2.position.clone().add(right.clone().multiplyScalar(halfWidth2));
-            
-            // Apply banking (rotate around forward axis)
-            if (bankingAngle1 !== 0) {
-                left1.sub(p1.position).applyAxisAngle(forward, bankingAngle1).add(p1.position);
-                right1.sub(p1.position).applyAxisAngle(forward, bankingAngle1).add(p1.position);
-            }
-            
-            if (bankingAngle2 !== 0) {
-                left2.sub(p2.position).applyAxisAngle(forward, bankingAngle2).add(p2.position);
-                right2.sub(p2.position).applyAxisAngle(forward, bankingAngle2).add(p2.position);
-            }
-            
-            // Add vertices
-            const baseIndex = vertices.length / 3;
-            
-            vertices.push(left1.x, left1.y, left1.z);
-            vertices.push(right1.x, right1.y, right1.z);
-            vertices.push(left2.x, left2.y, left2.z);
-            vertices.push(right2.x, right2.y, right2.z);
-            
-            // Add indices for two triangles
-            indices.push(
-                baseIndex, baseIndex + 1, baseIndex + 2,
-                baseIndex + 1, baseIndex + 3, baseIndex + 2
-            );
+            // Add vertices (left first, then right)
+            vertices.push(leftVertex.x, leftVertex.y, leftVertex.z);
+            vertices.push(rightVertex.x, rightVertex.y, rightVertex.z);
             
             // Add normals (pointing up)
-            for (let j = 0; j < 4; j++) {
-                normals.push(0, 1, 0);
-            }
+            normals.push(0, 1, 0);
+            normals.push(0, 1, 0);
             
             // Add UVs
-            const u1 = i / (points.length - 1);
-            const u2 = (i + 1) / (points.length - 1);
-            uvs.push(0, u1, 1, u1, 0, u2, 1, u2);
+            const u = i / (points.length - 1);
+            uvs.push(0, u); // Left edge
+            uvs.push(1, u); // Right edge
+        }
+        
+        // Create triangles connecting adjacent vertex pairs
+        for (let i = 0; i < points.length - 1; i++) {
+            const baseIndex = i * 2;
+            
+            // Create two triangles for each path segment
+            // Triangle 1: left[i], right[i], left[i+1]
+            indices.push(baseIndex, baseIndex + 1, baseIndex + 2);
+            // Triangle 2: right[i], right[i+1], left[i+1]  
+            indices.push(baseIndex + 1, baseIndex + 3, baseIndex + 2);
         }
         
         const geometry = new THREE.BufferGeometry();
@@ -324,6 +316,9 @@ export class PathGenerator {
         geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
         geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
         geometry.setIndex(indices);
+        
+        // Compute smooth vertex normals for better shading
+        geometry.computeVertexNormals();
         
         return geometry;
     }

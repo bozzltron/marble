@@ -44,6 +44,10 @@ export class MarblePhysics {
     private tempVector: THREE.Vector3 = new THREE.Vector3();
     private tempVector2: THREE.Vector3 = new THREE.Vector3();
     
+    // Improved collision detection with raycasting
+    private raycaster: THREE.Raycaster = new THREE.Raycaster();
+    private rayDirection: THREE.Vector3 = new THREE.Vector3(0, -1, 0); // Downward ray
+    
     public initialize(marble: THREE.Mesh): void {
         this.marble = marble;
         this.reset();
@@ -386,6 +390,66 @@ export class MarblePhysics {
     
     public canMarbleJump(): boolean {
         return this.canJump;
+    }
+    
+    // Improved collision detection using raycasting
+    public checkPathCollisionWithRaycasting(pathMeshes: THREE.Mesh[]): boolean {
+        if (!this.marble || pathMeshes.length === 0) return false;
+        
+        const marblePos = this.marble.position;
+        
+        // Cast ray downward from marble position
+        this.raycaster.set(marblePos, this.rayDirection);
+        
+        // Check intersection with path meshes
+        const intersections = this.raycaster.intersectObjects(pathMeshes);
+        
+        if (intersections.length > 0) {
+            const closestIntersection = intersections[0];
+            const distanceToPath = closestIntersection.distance;
+            
+            // If marble is close to path surface, it's on the path
+            if (distanceToPath <= this.marbleRadius + 0.5) {
+                // Update path surface height for physics
+                this.pathSurfaceHeight = closestIntersection.point.y;
+                return true;
+            }
+        }
+        
+        // No valid path found - marble should fall
+        this.pathSurfaceHeight = -1000;
+        return false;
+    }
+    
+    // Check if marble is within path boundaries using multiple rays
+    public checkPathBoundariesWithRaycasting(pathMeshes: THREE.Mesh[]): boolean {
+        if (!this.marble || pathMeshes.length === 0) return true;
+        
+        const marblePos = this.marble.position;
+        const checkRadius = this.marbleRadius + 0.2; // Slightly larger than marble
+        
+        // Cast rays in multiple directions around the marble
+        const rayDirections = [
+            new THREE.Vector3(0, -1, 0),      // Down
+            new THREE.Vector3(1, -1, 0).normalize(),   // Down-right
+            new THREE.Vector3(-1, -1, 0).normalize(),  // Down-left
+            new THREE.Vector3(0, -1, 1).normalize(),   // Down-forward
+            new THREE.Vector3(0, -1, -1).normalize(),  // Down-backward
+        ];
+        
+        let validIntersections = 0;
+        
+        for (const direction of rayDirections) {
+            this.raycaster.set(marblePos, direction);
+            const intersections = this.raycaster.intersectObjects(pathMeshes);
+            
+            if (intersections.length > 0 && intersections[0].distance <= checkRadius + 1.0) {
+                validIntersections++;
+            }
+        }
+        
+        // If we have at least 2 valid intersections, marble is on path
+        return validIntersections >= 2;
     }
     
 }
