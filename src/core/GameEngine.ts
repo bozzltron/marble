@@ -211,8 +211,11 @@ export class GameEngine {
     }
     
     private update(deltaTime: number, currentTime: number): void {
-        // Get path direction for input transformation
+        // Get path direction for input transformation and physics
         const pathDirection = this.chunkManager.getPathDirectionAtPosition(this.marble.position);
+        
+        // Update marble physics with current path direction
+        this.marblePhysics.setPathDirection(pathDirection);
         
         // Get input with path-relative transformation
         const input = this.inputManager.getInput(pathDirection);

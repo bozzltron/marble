@@ -85,19 +85,17 @@ export class InputManager {
         
         const touch = event.touches[0];
         const deltaX = touch.clientX - this.lastTouchX;
-        const deltaY = touch.clientY - this.lastTouchY;
         
-        // Convert screen coordinates to game coordinates
-        // Invert Y because screen Y increases downward but game Z increases forward
+        // Only process horizontal movement for steering
         const rawInputX = deltaX * this.touchSensitivity;
-        const rawInputZ = deltaY * this.touchSensitivity;
         
         // Apply smoothing to reduce jitter
         this.smoothedTouchInput.x = this.lerp(this.smoothedTouchInput.x, rawInputX, this.touchSmoothingFactor);
-        this.smoothedTouchInput.z = this.lerp(this.smoothedTouchInput.z, rawInputZ, this.touchSmoothingFactor);
         
         this.touchInput.x = this.smoothedTouchInput.x;
-        this.touchInput.z = this.smoothedTouchInput.z;
+        this.touchInput.z = 0; // No vertical input needed
+        
+        console.log('Touch move - deltaX:', deltaX, 'inputX:', this.touchInput.x);
         
         this.lastTouchX = touch.clientX;
         this.lastTouchY = touch.clientY;
@@ -173,31 +171,18 @@ export class InputManager {
         return a + (b - a) * factor;
     }
     
-    public getInput(pathDirection?: THREE.Vector3): InputState {
+    public getInput(_pathDirection?: THREE.Vector3): InputState {
         let inputX = 0;
-        let inputZ = 0;
         let active = false;
         let jump = false;
         
-        // Raw input values
-        let rawForward = 0;
-        let rawRight = 0;
-        
-        // Keyboard input (desktop)
+        // Keyboard input (desktop) - only left/right steering
         if (this.keys['ArrowLeft'] || this.keys['a'] || this.keys['A']) {
-            rawRight -= this.keyboardAcceleration;
+            inputX -= this.keyboardAcceleration;
             active = true;
         }
         if (this.keys['ArrowRight'] || this.keys['d'] || this.keys['D']) {
-            rawRight += this.keyboardAcceleration;
-            active = true;
-        }
-        if (this.keys['ArrowUp'] || this.keys['w'] || this.keys['W']) {
-            rawForward += this.keyboardAcceleration;
-            active = true;
-        }
-        if (this.keys['ArrowDown'] || this.keys['s'] || this.keys['S']) {
-            rawForward -= this.keyboardAcceleration;
+            inputX += this.keyboardAcceleration;
             active = true;
         }
         
@@ -206,11 +191,11 @@ export class InputManager {
             jump = true;
         }
         
-        // Touch input (mobile) - overrides keyboard if active
+        // Touch input (mobile) - only horizontal steering
         if (this.touchInput.active) {
-            rawRight = this.touchInput.x;
-            rawForward = -this.touchInput.z; // Invert Z for forward/backward
+            inputX = this.touchInput.x * 2; // Amplify touch sensitivity for steering
             active = true;
+            console.log('Touch input X:', inputX);
         }
         
         // Touch jump input
@@ -219,30 +204,9 @@ export class InputManager {
             this.jumpPressed = false; // Reset after reading
         }
         
-        // Transform input relative to path direction
-        if (pathDirection && (rawForward !== 0 || rawRight !== 0)) {
-            // Calculate right vector perpendicular to path direction
-            const rightVector = new THREE.Vector3()
-                .crossVectors(pathDirection, new THREE.Vector3(0, 1, 0))
-                .normalize();
-            
-            // Transform input to world coordinates
-            const forwardComponent = pathDirection.clone().multiplyScalar(rawForward);
-            const rightComponent = rightVector.multiplyScalar(rawRight);
-            
-            const worldInput = forwardComponent.add(rightComponent);
-            
-            inputX = worldInput.x;
-            inputZ = worldInput.z;
-        } else {
-            // Fallback to raw input if no path direction
-            inputX = rawRight;
-            inputZ = -rawForward; // Negative Z is forward in world space
-        }
-        
         return {
             x: inputX,
-            z: inputZ,
+            z: 0, // No Z input needed - auto-forward handles this
             active: active,
             jump: jump
         };

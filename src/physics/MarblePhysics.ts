@@ -20,6 +20,7 @@ export class MarblePhysics {
     private maxSpeed: number = 0.4;
     private bounceFactor: number = 0.3;
     private marbleRadius: number = 0.3;
+    private autoForwardSpeed: number = 0.15; // Constant forward rolling speed
     
     // Ground detection
     private groundLevel: number = 0.3; // Marble radius
@@ -108,15 +109,36 @@ export class MarblePhysics {
     }
     
     private applyInputForces(input: InputState, deltaTime: number): void {
-        if (!input.active) return;
+        // Always apply constant forward motion along the path
+        const pathDirection = this.getPathDirection();
+        const forwardForce = pathDirection.clone().multiplyScalar(this.autoForwardSpeed);
         
-        // Convert input to world forces
-        const forceX = input.x * this.acceleration * deltaTime * 60; // Normalize for 60fps
-        const forceZ = input.z * this.acceleration * deltaTime * 60;
+        // Apply auto-forward motion
+        this.velocity.x = forwardForce.x;
+        this.velocity.z = forwardForce.z;
         
-        // Apply forces with some smoothing
-        this.velocity.x += forceX;
-        this.velocity.z += forceZ;
+        // Apply left/right steering if input is active
+        if (input.active && Math.abs(input.x) > 0.01) {
+            // Calculate right vector (perpendicular to path direction)
+            const rightVector = new THREE.Vector3()
+                .crossVectors(pathDirection, new THREE.Vector3(0, 1, 0))
+                .normalize();
+            
+            // Apply steering force
+            const steeringForce = rightVector.multiplyScalar(input.x * this.acceleration * deltaTime * 60);
+            this.velocity.x += steeringForce.x;
+            this.velocity.z += steeringForce.z;
+        }
+    }
+    
+    private pathDirection: THREE.Vector3 = new THREE.Vector3(0, 0, -1);
+    
+    public setPathDirection(direction: THREE.Vector3): void {
+        this.pathDirection = direction.clone().normalize();
+    }
+    
+    private getPathDirection(): THREE.Vector3 {
+        return this.pathDirection.clone();
     }
     
     private applyGravity(deltaTime: number): void {
